@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="logo-title logo-description">
+  <title id="logo-title">Wellness Diary</title>
+  <desc id="logo-description">An open journal with a small sprout growing from its center.</desc>
+  <rect x="3" y="3" width="90" height="90" rx="22" fill="#fff8ea" stroke="#6e3040" stroke-width="3"/>
+  <path d="M17 40c11-2 21 1 30 8v29c-9-7-19-10-30-8Z" fill="#eadfc9" stroke="#6e3040" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M79 40c-11-2-21 1-30 8v29c9-7 19-10 30-8Z" fill="#f3e8d3" stroke="#6e3040" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M48 48v29" fill="none" stroke="#6e3040" stroke-width="3" stroke-linecap="round"/>
+  <path d="M48 47c0-10 3-19 10-27" fill="none" stroke="#6e3040" stroke-width="3" stroke-linecap="round"/>
+  <path d="M51 34c-9 0-15-5-16-13 9-1 16 4 16 13Z" fill="#87956d" stroke="#53644d" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M53 29c0-8 6-14 14-14 1 8-5 15-14 14Z" fill="#d18a76" stroke="#b95f4c" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="48" cy="48" r="3.5" fill="#b95f4c"/>
+</svg>
