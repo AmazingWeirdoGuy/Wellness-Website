@@ -380,10 +380,14 @@ function WaterActivity({ state, setState }: Pick<Props, 'state' | 'setState'>) {
 
 export function MindfulnessMinigames({ state, setState, onSupport }: Props) {
   const current = state.current;
+  const gamesPageRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    gamesPageRef.current?.scrollTo({ top: 0 });
+  }, [current]);
   const open = (activity: ActivityId | null) => setState((previous) => ({ ...previous, current: activity }));
   const currentName = activities.find((activity) => activity.id === current)?.name;
   return <div className="spread minigames-spread" data-testid="page-minigames">
-    <section className="sheet minigames-sheet mini-games-page"><div className="sheet-content">
+    <section className="sheet minigames-sheet mini-games-page"><div ref={gamesPageRef} className="sheet-content" tabIndex={0} role="region" aria-label="Mindfulness games">
       <div className="sheet-rubric eyebrow"><span>A little room to pause</span><span className="page-no">07 / 08</span></div>
       <div className="mini-topbar">{current ? <button className="mini-back" onClick={() => open(null)}><ArrowLeft size={16} /> Back to minigames</button> : <span className="mini-topbar-spacer" />}<button className="mini-support" onClick={onSupport}><ShieldCheck size={15} /> Get support</button></div>
       {current ? <div key={current} className="mini-paper-in"><div className="mini-intro"><h3>{currentName}</h3><p>{activities.find((activity) => activity.id === current)?.hint}</p></div>
@@ -396,7 +400,7 @@ export function MindfulnessMinigames({ state, setState, onSupport }: Props) {
         {current === 'water' && <WaterActivity state={state} setState={setState} />}
       </div> : <Launcher onOpen={open} />}
     </div></section>
-    <section className="sheet mini-note-page"><div className="sheet-content">
+    <section className="sheet mini-note-page"><div className="sheet-content" tabIndex={0} role="region" aria-label="A note beside the games">
       <div className="sheet-rubric eyebrow"><span>A note beside the games</span><span className="page-no">08 / 08</span></div>
       <div className="mini-note-content">
         <div className="eyebrow">A small invitation</div>

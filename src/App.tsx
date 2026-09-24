@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -20,12 +20,10 @@ import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { BurnEffect, BURN_DURATION_MS } from './BurnEffect';
 import { MindfulnessMinigames, createMindfulnessState } from './MindfulnessMinigames';
+import { useBookTurn, type PageDirection } from './useBookTurn';
 
 type Section = 'contents' | 'checkin' | 'letout' | 'guided' | 'minigames' | 'kind';
 type InfoPage = 'about' | 'contact' | 'terms' | 'privacy';
-type PageDirection = 'next' | 'previous';
-
-const PAGE_FLIP_STAGGER_MS = 150;
 const CONTACT_EMAIL = 'ronnie111555@gmail.com';
 const SITE_ORIGIN = 'https://wellnessdiary.org';
 
@@ -471,7 +469,7 @@ function CheckInPage({
   return (
     <div className="spread" data-testid="page-check-in">
       <section className="sheet">
-        <div className="sheet-content">
+        <div className="sheet-content" tabIndex={0} role="region" aria-label="How you are feeling">
           <div className="sheet-rubric eyebrow"><span>Today, as it is</span><span className="page-no">01 / 08</span></div>
           <label className="prompt-label">How are you arriving here?</label>
           <p className="page-subtitle">There is no right answer. Notice what is true without needing to fix it.</p>
@@ -495,7 +493,7 @@ function CheckInPage({
         </div>
       </section>
       <section className="sheet">
-        <div className="sheet-content">
+        <div className="sheet-content" tabIndex={0} role="region" aria-label="What you need">
           <div className="sheet-rubric eyebrow"><span>A softer inventory</span><span className="page-no">02 / 08</span></div>
           <p className="prompt-label" id="needs-question">What do you need a little more of?</p>
           <div className="need-list" role="group" aria-labelledby="needs-question">
@@ -545,7 +543,7 @@ function WritingPage({
   return (
     <div className="spread" data-testid={`page-${mode}`}>
       <section className={`sheet writing-sheet ${burning ? 'is-burning' : ''}`}>
-        <div className="sheet-content">
+        <div className="sheet-content" tabIndex={0} role="region" aria-label="Writing page">
           <div className="sheet-rubric eyebrow">
             <span>{isGuided ? 'A small doorway in' : 'Nothing to perform'}</span>
             <span className="page-no">{isGuided ? '05 / 08' : '03 / 08'}</span>
@@ -574,7 +572,7 @@ function WritingPage({
         {burning && <BurnEffect />}
       </section>
       <section className="sheet">
-        <div className="sheet-content">
+        <div className="sheet-content" tabIndex={0} role="region" aria-label="Writing prompts">
           <div className="sheet-rubric eyebrow"><span>{isGuided ? 'Choose a thread' : 'If another door feels kinder'}</span><span className="page-no">{isGuided ? '06 / 08' : '04 / 08'}</span></div>
           <p className="prompt-label">You could begin with...</p>
           <div className="prompt-list">
@@ -605,7 +603,7 @@ function KindPage() {
   return (
     <div className="spread" data-testid="page-kind-words">
       <section className="sheet">
-        <div className="sheet-content">
+        <div className="sheet-content" tabIndex={0} role="region" aria-label="Kind words for you">
           <div className="sheet-rubric eyebrow"><span>Tucked in for later</span><span className="page-no">09 / 10</span></div>
           <p className="prompt-label">A few words to keep nearby.</p>
           <div className="notes-stack" aria-live="polite">
@@ -615,7 +613,7 @@ function KindPage() {
         </div>
       </section>
       <section className="sheet">
-        <div className="sheet-content">
+        <div className="sheet-content" tabIndex={0} role="region" aria-label="Kind words for a friend">
           <div className="sheet-rubric eyebrow"><span>Leave one here</span><span className="page-no">10 / 10</span></div>
           <p className="prompt-label">What would you say to a dear friend?</p>
           <div className="kind-note" aria-live="polite"><span className="eyebrow">your note</span><p>{notes[2]}</p></div>
@@ -632,7 +630,7 @@ function ContentsPage({ onChange }: { onChange: (section: Section) => void }) {
   return (
     <div className="spread" data-testid="page-contents">
       <section className="sheet">
-        <div className="sheet-content">
+        <div className="sheet-content" tabIndex={0} role="region" aria-label="Welcome to your journal">
           <div className="sheet-rubric eyebrow"><span>Wellness Diary</span><span className="page-no">index</span></div>
           <p className="prompt-label">A place to begin, or begin again.</p>
           <p className="page-subtitle">No account. No saved history. Just a quiet set of pages for this visit.</p>
@@ -640,7 +638,7 @@ function ContentsPage({ onChange }: { onChange: (section: Section) => void }) {
         </div>
       </section>
       <section className="sheet">
-        <div className="sheet-content">
+        <div className="sheet-content" tabIndex={0} role="region" aria-label="Journal contents">
           <div className="sheet-rubric eyebrow"><span>Turn to a page</span><span className="page-no">contents</span></div>
           <div className="contents-grid">
             {sections.slice(1).map(({ id, label, short }) => (
@@ -690,9 +688,10 @@ function BurnModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: (
 }
 
 function Journal({ onHome }: { onHome: () => void }) {
+  const bookFrameRef = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState<Section>('contents');
-  const [pageDirection, setPageDirection] = useState<PageDirection>('next');
-  const [pageTurnCount, setPageTurnCount] = useState(1);
+  const queuedPage = useRef<Section | null>(null);
+  const { prepareTurn, isTurning, busy, finishTurn } = useBookTurn(bookFrameRef, active);
   const [infoPage, setInfoPage] = useState<InfoPage | null>(null);
   const [showSupport, setShowSupport] = useState(false);
   const [showBurn, setShowBurn] = useState(false);
@@ -708,23 +707,28 @@ function Journal({ onHome }: { onHome: () => void }) {
   const activeLabel = useMemo(() => sections.find((section) => section.id === active)?.label ?? 'Contents', [active]);
   const activeIndex = sections.findIndex((section) => section.id === active);
   const navigateTo = (section: Section, direction?: PageDirection) => {
+    if (busy.current) {
+      queuedPage.current = section;
+      return;
+    }
     window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-    if (section === active) return;
+    if (section === active) {
+      bookFrameRef.current?.querySelectorAll('.sheet-content').forEach((page) => page.scrollTo({ top: 0 }));
+      return;
+    }
     const targetIndex = sections.findIndex((item) => item.id === section);
     const nextDirection = direction ?? (targetIndex > activeIndex ? 'next' : 'previous');
-    setPageDirection(nextDirection);
-    setPageTurnCount(Math.abs(targetIndex - activeIndex));
+    prepareTurn(nextDirection, Math.abs(targetIndex - activeIndex));
     if (section === 'letout') setPrompt(prompts[0]);
     if (section === 'guided') setPrompt(guidedPrompts[0]);
     setActive(section);
   };
-  const flipDuration = pageTurnCount > 1 ? 680 : 900;
-  const lastFlipDelay = (pageTurnCount - 1) * PAGE_FLIP_STAGGER_MS;
-  const turnStyle = {
-    '--turn-duration': `${flipDuration}ms`,
-    '--turn-total': `${flipDuration + lastFlipDelay}ms`,
-    '--stack-delay': `${lastFlipDelay}ms`,
-  } as CSSProperties;
+  useEffect(() => {
+    if (isTurning || queuedPage.current === null) return;
+    const section = queuedPage.current;
+    queuedPage.current = null;
+    navigateTo(section);
+  }, [isTurning]);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(''), 3500);
@@ -735,6 +739,8 @@ function Journal({ onHome }: { onHome: () => void }) {
   }, []);
 
   const clearSession = () => {
+    queuedPage.current = null;
+    finishTurn();
     if (burnTimer.current !== null) window.clearTimeout(burnTimer.current);
     burnTimer.current = null;
     setBurningPage(null);
@@ -759,7 +765,7 @@ function Journal({ onHome }: { onHome: () => void }) {
 
   return (
     <main className="journal-shell">
-      <Header active={active} onChange={navigateTo} onHome={onHome} onSupport={() => setShowSupport(true)} />
+      <Header active={active} onChange={navigateTo} onHome={() => { queuedPage.current = null; finishTurn(); onHome(); }} onSupport={() => setShowSupport(true)} />
       <div className="journal-main">
         <div className="page-meta">
           <div>
@@ -778,7 +784,7 @@ function Journal({ onHome }: { onHome: () => void }) {
           >
             <ArrowLeft size={19} strokeWidth={1.4} />
           </button>
-          <div key={active} className={`page-turn-frame ${pageDirection} ${pageTurnCount > 1 ? 'multi-turn' : ''}`} style={turnStyle}>
+          <div ref={bookFrameRef} className="page-turn-frame">
           {active === 'contents' && <ContentsPage onChange={navigateTo} />}
           {active === 'checkin' && (
             <CheckInPage
@@ -788,21 +794,9 @@ function Journal({ onHome }: { onHome: () => void }) {
               onToggleNeed={(need) => setSelectedNeeds((current) => current.includes(need) ? current.filter((item) => item !== need) : [...current, need])}
             />
           )}
-          {(active === 'letout' || active === 'guided') && <WritingPage mode={active} content={content} prompt={prompt} onContentChange={setContent} onPromptChange={setPrompt} onBurn={() => setShowBurn(true)} burning={burningPage === active} />}
+          {(active === 'letout' || active === 'guided') && <WritingPage key={active} mode={active} content={content} prompt={prompt} onContentChange={setContent} onPromptChange={setPrompt} onBurn={() => setShowBurn(true)} burning={burningPage === active} />}
           {active === 'minigames' && <MindfulnessMinigames state={mindfulness} setState={setMindfulness} onSupport={() => setShowSupport(true)} />}
           {active === 'kind' && <KindPage />}
-          {pageTurnCount > 1 && <div className="page-turn-stack" aria-hidden="true" />}
-          {Array.from({ length: pageTurnCount }, (_, index) => (
-            <div
-              key={index}
-              className="page-turn-leaf"
-              aria-hidden="true"
-              style={{ '--turn-delay': `${index * PAGE_FLIP_STAGGER_MS}ms`, zIndex: 3 + index } as CSSProperties}
-            >
-              <span className="page-turn-leaf-body" />
-              <span className="page-turn-leaf-tip" />
-            </div>
-          ))}
           </div>
           <button
             className="page-arrow page-arrow-right"
