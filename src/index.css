@@ -619,13 +619,12 @@ button { cursor: pointer; }
 .page-turn-frame .spread { position: relative; }
 .page-turn-frame .spread::after { content: ""; position: absolute; inset: 0 auto 0 50%; z-index: 2; width: 24px; transform: translateX(-50%); pointer-events: none; background: linear-gradient(90deg, transparent, rgba(73,52,48,.045) 48%, rgba(73,52,48,.065) 50%, transparent); }
 .book-turn-overlay { position: absolute; inset: 0; z-index: 4; pointer-events: none; perspective: 3600px; perspective-origin: 50% 20%; transform-style: preserve-3d; }
-.book-turn-resting { position: absolute; overflow: hidden; background: #f7efdf; }
-.book-turn-paper { position: absolute; left: 0; right: 0; transform-style: preserve-3d; }
-.book-turn-strip { position: absolute; inset: 0 auto 0 0; transform-style: preserve-3d; will-change: transform; }
-.book-turn-face { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: #f7efdf; }
-.book-turn-face.is-back { transform: rotateY(180deg); }
-.book-turn-blank { background: #fefcf5; }
-.book-turn-blank::after { content: ""; position: absolute; inset: 22% 12% 12%; background: repeating-linear-gradient(to bottom, transparent 0, transparent calc(2rem - 1px), rgba(73,52,48,.07) calc(2rem - 1px), rgba(73,52,48,.07) 2rem); }
+.book-turn-hold, .book-turn-samples { position: absolute; inset: 0; }
+.book-turn-samples { opacity: 0; pointer-events: none; }
+.book-turn-canvas { position: absolute; left: 0; z-index: 2; pointer-events: none; }
+.book-turn-flat { position: absolute; transform-style: preserve-3d; will-change: transform; }
+.book-turn-flat-face { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: #fefcf5; }
+.book-turn-flat-face.is-back { transform: rotateY(180deg); }
 .book-turn-copy { position: absolute !important; margin: 0 !important; overflow: hidden; pointer-events: none; }
 .book-turn-copy, .book-turn-copy *, .book-turn-copy *::before, .book-turn-copy *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }
 .book-turn-overlay.is-stacked { overflow: clip; perspective: 2200px; }
