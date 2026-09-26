@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
 import { ArrowLeft, Check, Pause, Play, RotateCcw, ShieldCheck, Square, Trash2, Undo2, Volume2, VolumeX } from 'lucide-react';
 import { CLOVER_BOARD_WIDTH, stepCloverSteering, wrapCloverX, type CloverDirection } from './cloverMovement';
+import { PetalKeys } from './PetalKeys';
+import { PatchworkStack } from './PatchworkStack';
 import './mindfulness.css';
 
-type ActivityId = 'breath' | 'doodles' | 'folding' | 'garden' | 'ripples' | 'rocks' | 'water' | 'orchard' | 'clover';
+type ActivityId = 'breath' | 'keys' | 'stack' | 'garden' | 'ripples' | 'rocks' | 'water' | 'orchard' | 'clover';
 type Point = { x: number; y: number };
 type Stroke = { id: number; points: Point[]; color: string; size: number; at: number };
-type FoldShape = 'boat' | 'crane' | 'heart';
 type GardenKind = 'poppy' | 'daisy' | 'leaf' | 'sprig' | 'scrap';
 type GardenItem = { id: number; kind: GardenKind; x: number; y: number; rotation: number; scale: number };
 type Ripple = { id: number; x: number; y: number; at: number };
@@ -14,8 +15,8 @@ type Ripple = { id: number; x: number; y: number; at: number };
 export type MindfulnessState = {
   current: ActivityId | null;
   breath: { running: boolean; elapsed: number; pace: 'slow' | 'gentle' | 'steady'; mode: 'gentle' | 'box' };
-  doodles: { strokes: Stroke[]; guide: 'none' | 'spiral' | 'winding' | 'shape'; color: string; size: number };
-  folding: { shape: FoldShape; step: number };
+  keys: { best: number };
+  stack: { best: number };
   garden: { items: GardenItem[]; history: GardenItem[][]; selected: number | null; tool: GardenKind; done: boolean };
   ripples: { waves: Ripple[]; clock: number; watching: boolean; paused: boolean };
   rocks: { progress: number; running: boolean; settling: boolean; sound: boolean };
@@ -27,8 +28,8 @@ export type MindfulnessState = {
 export const createMindfulnessState = (): MindfulnessState => ({
   current: null,
   breath: { running: false, elapsed: 0, pace: 'gentle', mode: 'gentle' },
-  doodles: { strokes: [], guide: 'none', color: '#493b34', size: 3 },
-  folding: { shape: 'boat', step: 0 },
+  keys: { best: 0 },
+  stack: { best: 0 },
   garden: { items: [], history: [], selected: null, tool: 'poppy', done: false },
   ripples: { waves: [], clock: 0, watching: false, paused: false },
   rocks: { progress: 0, running: false, settling: false, sound: false },
@@ -45,8 +46,8 @@ type Props = {
 
 const activities: Array<{ id: ActivityId; name: string; hint: string }> = [
   { id: 'breath', name: 'Take a Breath', hint: 'A flower, at your pace' },
-  { id: 'doodles', name: 'Margin Doodles', hint: 'Wander across the page' },
-  { id: 'folding', name: 'Paper Folding', hint: 'One fold at a time' },
+  { id: 'keys', name: 'Petal Keys', hint: 'A melody at your fingertips' },
+  { id: 'stack', name: 'Patchwork Stack', hint: 'Make room, piece by piece' },
   { id: 'garden', name: 'Pressed-Flower Garden', hint: 'Arrange what you find' },
   { id: 'ripples', name: 'Ink Ripples', hint: 'Watch small circles widen' },
   { id: 'rocks', name: 'Skipping Rocks', hint: 'A quiet throw across water' },
@@ -64,7 +65,6 @@ const pointFromEvent = (event: ReactPointerEvent<SVGSVGElement>, width = 600, he
     y: clamp((event.clientY - bounds.top) / bounds.height * height, 0, height),
   };
 };
-const pathFromPoints = (points: Point[]) => points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -90,8 +90,8 @@ function MiniIllustration({ id }: { id: ActivityId }) {
       <path d="M0 70 Q28 57 55 73 T100 67 V100 H0Z" fill="#d8c9ae" opacity=".55" />
       <g filter={`url(#paper-wash-${id})`} stroke="#66574b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         {id === 'breath' && <><path d="M49 51 Q47 70 51 85" fill="none" /><path d="M50 73 Q34 63 28 70 Q37 80 50 76M50 70 Q63 58 72 65 Q66 76 51 75" fill="#9fad88" opacity=".8" /><g fill="#d8a089" opacity=".82"><ellipse cx="50" cy="33" rx="11" ry="20" /><ellipse cx="50" cy="55" rx="11" ry="20" /><ellipse cx="39" cy="44" rx="20" ry="11" /><ellipse cx="61" cy="44" rx="20" ry="11" /></g><circle cx="50" cy="44" r="11" fill="#e9c98d" /></>}
-        {id === 'doodles' && <><path d="M31 61 C20 42 44 19 65 35 C82 48 64 76 43 66 C29 59 38 41 51 43 C64 44 61 57 51 58 C44 58 44 51 49 50" fill="none" stroke="#7d645c" strokeWidth="2" /><path d="M69 70 L83 42 L88 45 L74 73Z" fill="#c9aa79" /><path d="M69 70 L74 73 L67 77Z" fill="#55463d" /><path d="M83 42 L87 35 L91 38 L88 45" fill="#b96355" /></>}
-        {id === 'folding' && <><path d="M13 60 L51 33 L87 60Z" fill="#e9cfac" /><path d="M19 61 L81 61 L70 75 L31 75Z" fill="#f6ead7" /><path d="M51 33 L51 61 M31 75 L51 61 L70 75" fill="none" strokeDasharray="3 2" /><path d="M15 81 Q51 76 85 81" fill="none" stroke="#9bb0ae" opacity=".7" /></>}
+        {id === 'keys' && <><rect x="17" y="21" width="66" height="58" rx="4" fill="#f8efdc"/><path d="M34 22V78M50 22V78M66 22V78" fill="none" stroke="#aa967c"/>{[0, 1, 2, 3].map((lane) => <rect key={lane} x={20 + lane * 16} y={[42, 27, 51, 35][lane]} width="10" height="17" rx="2" fill={['#8b9c7c', '#be7b68', '#9d7893', '#c7a160'][lane]}/>)}<path d="M19 68H81" stroke="#a58466" strokeDasharray="3 3"/><path d="M43 14Q50 6 57 14" fill="none" stroke="#788a68"/></>}
+        {id === 'stack' && <><path d="M15 18H85V83H15Z" fill="#f5ecd9" stroke="#b5a085"/>{[{x:21,y:63,c:'#8b9c7c'},{x:35,y:63,c:'#8b9c7c'},{x:49,y:63,c:'#be7b68'},{x:63,y:63,c:'#be7b68'},{x:49,y:49,c:'#be7b68'},{x:63,y:49,c:'#be7b68'},{x:21,y:49,c:'#8b9c7c'},{x:35,y:27,c:'#9d7893'},{x:49,y:27,c:'#9d7893'},{x:63,y:27,c:'#9d7893'},{x:49,y:13,c:'#9d7893'}].map((block, i) => <g key={i}><rect x={block.x} y={block.y} width="13" height="13" rx="2" fill={block.c}/><path d={`M${block.x+3} ${block.y+4}h7`} stroke="#f9efda" strokeDasharray="2 2"/></g>)}</>}
         {id === 'garden' && <><path d="M18 25 L82 20 L85 76 L20 79Z" fill="#f2e8d5" /><path d="M45 69 Q42 49 49 36" fill="none" stroke="#73856c" /><path d="M46 56 Q34 44 30 54 Q39 62 46 60M49 51 Q60 41 65 48 Q58 56 49 54" fill="#a3ae8b" /><g fill="#bf786f"><ellipse cx="49" cy="32" rx="7" ry="14" /><ellipse cx="49" cy="32" rx="14" ry="7" /></g><circle cx="49" cy="32" r="5" fill="#dfc38e" /><path d="M23 19 L44 18 L46 29 L24 30Z" fill="#f6e9d1" opacity=".55" /></>}
         {id === 'ripples' && <><path d="M50 19 C61 37 64 44 50 55 C36 45 39 37 50 19Z" fill="#6d8592" /><ellipse cx="50" cy="69" rx="31" ry="10" fill="none" stroke="#718b94" opacity=".7" /><ellipse cx="50" cy="69" rx="20" ry="6" fill="none" stroke="#718b94" opacity=".75" /><ellipse cx="50" cy="69" rx="9" ry="3" fill="none" stroke="#718b94" /></>}
         {id === 'rocks' && <><path d="M0 62 Q35 55 100 64 V100 H0Z" fill="#a9c1bd" opacity=".8" /><path d="M18 73 Q50 68 85 76 M24 84 Q54 81 79 86" fill="none" stroke="#f2eee1" opacity=".8" /><path d="M38 43 Q54 34 68 43 L70 50 Q54 57 36 49Z" fill="#8e8171" /><path d="M43 44 Q57 40 64 44" fill="none" stroke="#b9aa92" /></>}
@@ -160,71 +160,6 @@ function BreathActivity({ state, setState }: Pick<Props, 'state' | 'setState'>) 
   </div>;
 }
 
-function DoodlesActivity({ state, setState }: Pick<Props, 'state' | 'setState'>) {
-  const doodles = state.doodles;
-  const drawing = useRef<Stroke | null>(null);
-  const [live, setLive] = useState<Stroke | null>(null);
-  const [cursor, setCursor] = useState<Point>({ x: 300, y: 200 });
-  const [keyboardFocus, setKeyboardFocus] = useState(false);
-  const setDoodles = (patch: Partial<MindfulnessState['doodles']>) => setState((current) => ({ ...current, doodles: { ...current.doodles, ...patch } }));
-  const addKeyboardStroke = (points: Point[]) => setState((current) => ({ ...current, doodles: { ...current.doodles, strokes: [...current.doodles.strokes, { id: newId(), points, color: current.doodles.color, size: current.doodles.size, at: 0 }] } }));
-  const finish = () => {
-    if (!drawing.current) return;
-    const stroke = drawing.current;
-    setState((current) => ({ ...current, doodles: { ...current.doodles, strokes: [...current.doodles.strokes, stroke] } }));
-    drawing.current = null;
-    setLive(null);
-  };
-  const guide = doodles.guide === 'spiral' ? <path d="M300 200 C265 170 280 125 335 140 C405 160 410 240 340 267 C240 300 174 224 206 143 C236 65 359 72 422 143" /> : doodles.guide === 'winding' ? <path d="M35 300 C130 340 130 100 225 141 S322 340 410 241 S478 70 565 113" /> : doodles.guide === 'shape' ? <><circle cx="208" cy="205" r="85" /><path d="M335 291 L422 112 L522 291Z" /></> : null;
-  return <div className="mini-activity-body">
-    <div className="mini-controls"><label>Optional guide <select value={doodles.guide} onChange={(event) => setDoodles({ guide: event.target.value as MindfulnessState['doodles']['guide'] })}><option value="none">Blank page</option><option value="spiral">Spiral</option><option value="winding">Winding line</option><option value="shape">Simple shapes</option></select></label><label>Brush size <select value={doodles.size} onChange={(event) => setDoodles({ size: Number(event.target.value) })}><option value="2">Fine</option><option value="3">Medium</option><option value="6">Broad</option></select></label><div className="mini-swatches" aria-label="Ink colours">{['#493b34', '#865f68', '#6a8072', '#617e8a'].map((color) => <button key={color} className={doodles.color === color ? 'selected' : ''} style={{ backgroundColor: color }} aria-label={`Ink colour ${color}`} aria-pressed={doodles.color === color} onClick={() => setDoodles({ color })} />)}</div></div>
-    <svg className="mini-drawing-board" viewBox="0 0 600 400" preserveAspectRatio="none" tabIndex={0} role="img" aria-label="Doodle on this paper. Use touch or mouse, or arrow keys to move, Space to mark, and Shift with arrows to draw." onFocus={() => setKeyboardFocus(true)} onBlur={() => setKeyboardFocus(false)} onKeyDown={(event) => { const step = 16; const offsets: Record<string, Point> = { ArrowLeft: { x: -step, y: 0 }, ArrowRight: { x: step, y: 0 }, ArrowUp: { x: 0, y: -step }, ArrowDown: { x: 0, y: step } }; const offset = offsets[event.key]; if (offset) { event.preventDefault(); const next = { x: clamp(cursor.x + offset.x, 0, 600), y: clamp(cursor.y + offset.y, 0, 400) }; if (event.shiftKey) addKeyboardStroke([cursor, next]); setCursor(next); } else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); addKeyboardStroke([cursor]); } }} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); const stroke = { id: newId(), points: [pointFromEvent(event)], color: doodles.color, size: doodles.size, at: 0 }; drawing.current = stroke; setLive(stroke); }} onPointerMove={(event) => { if (!drawing.current) return; const stroke = { ...drawing.current, points: [...drawing.current.points, pointFromEvent(event)] }; drawing.current = stroke; setLive(stroke); }} onPointerUp={finish} onPointerCancel={finish}>
-      <rect width="600" height="400" fill="#f6efdf" />
-      <path d="M34 80H565M34 135H565M34 190H565M34 245H565M34 300H565M34 355H565" stroke="#b9a897" opacity=".27" />
-      {guide && <g className="mini-guide" fill="none" stroke="#9a9c89" strokeWidth="2" strokeDasharray="5 7">{guide}</g>}
-      {[...doodles.strokes, ...(live ? [live] : [])].map((stroke) => stroke.points.length === 1 ? <circle key={stroke.id} cx={stroke.points[0].x} cy={stroke.points[0].y} r={stroke.size / 2} fill={stroke.color} /> : <path key={stroke.id} d={pathFromPoints(stroke.points)} fill="none" stroke={stroke.color} strokeWidth={stroke.size} strokeLinecap="round" strokeLinejoin="round" />)}
-      {keyboardFocus && <circle className="mini-keyboard-cursor" cx={cursor.x} cy={cursor.y} r="9" fill="none" />}
-    </svg>
-    <div className="mini-controls"><button className="quiet-button" disabled={!doodles.strokes.length} onClick={() => setDoodles({ strokes: doodles.strokes.slice(0, -1) })}><Undo2 size={14} /> Undo</button><button className="quiet-button" disabled={!doodles.strokes.length} onClick={() => setDoodles({ strokes: [] })}><Trash2 size={14} /> Clear</button></div>
-    <p className="mini-help">Follow a line, cross it, or leave it behind. The page is yours to wander on.</p>
-  </div>;
-}
-
-const foldInstructions: Record<FoldShape, string[]> = {
-  boat: ['Begin with a square of paper.', 'Fold the top toward the bottom.', 'Bring the corners into the centre.', 'Open the lower edges.', 'Let your little boat rest.'],
-  crane: ['Begin with a square of paper.', 'Fold diagonally into a triangle.', 'Bring both edges toward the centre.', 'Lift the neck and wings.', 'Let your crane rest.'],
-  heart: ['Begin with a square of paper.', 'Fold diagonally into a triangle.', 'Bring the sides toward the tip.', 'Turn the top corners down.', 'Let your heart rest.'],
-};
-const foldPaths: Record<FoldShape, string[]> = {
-  boat: ['M190 80H410V300H190Z', 'M190 125H410V275H190Z', 'M190 245L300 100L410 245Z', 'M175 250L300 160L425 250L385 300H215Z', 'M130 225H470L414 290H188Z'],
-  crane: ['M190 80H410V300H190Z', 'M300 70L445 290H155Z', 'M300 90L390 288H210Z', 'M300 98L336 280L450 172L360 306H240L150 172L264 280Z', 'M300 110L335 245L462 172L372 278L336 290H264L228 278L138 172L265 245Z'],
-  heart: ['M190 80H410V300H190Z', 'M300 85L448 290H152Z', 'M300 100L435 225L300 302L165 225Z', 'M300 292L155 165L225 105L300 171L375 105L445 165Z', 'M300 294L154 163Q145 115 200 105Q257 99 300 151Q343 99 400 105Q455 115 446 163Z'],
-};
-const foldNextCrease: Record<FoldShape, string[]> = {
-  boat: ['M190 190H410', 'M190 125L300 208L410 125', 'M300 100V245', 'M175 250H425'],
-  crane: ['M190 80L410 300', 'M210 288L300 90L390 288', 'M300 98V282', 'M155 172L265 245M445 172L335 245'],
-  heart: ['M190 80L410 300', 'M165 225L300 100L435 225', 'M165 225L300 292L435 225', 'M155 165L225 105M445 165L375 105'],
-};
-
-function FoldingActivity({ state, setState }: Pick<Props, 'state' | 'setState'>) {
-  const folding = state.folding;
-  const [replay, setReplay] = useState(0);
-  const setFolding = (patch: Partial<MindfulnessState['folding']>) => setState((current) => ({ ...current, folding: { ...current.folding, ...patch } }));
-  return <div className="mini-activity-body mini-folding">
-    <div className="mini-controls"><label>Fold a <select value={folding.shape} onChange={(event) => { setFolding({ shape: event.target.value as FoldShape, step: 0 }); setReplay((value) => value + 1); }}><option value="boat">Boat</option><option value="crane">Crane</option><option value="heart">Heart</option></select></label><span className="mini-step-count">Step {folding.step + 1} of 5</span></div>
-    <div className="mini-art-panel mini-fold-art"><svg key={`${folding.shape}-${folding.step}-${replay}`} className="fold-step-art" viewBox="0 0 600 380" role="img" aria-label={`${folding.shape} folding step ${folding.step + 1}`}>
-      <defs><linearGradient id="fold-paper" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#fff9e9" /><stop offset="1" stopColor="#d7c5a8" /></linearGradient></defs>
-      <path d={foldPaths[folding.shape][folding.step]} fill="url(#fold-paper)" stroke="#8d7866" strokeWidth="3" strokeLinejoin="round" />
-      {folding.step > 0 && <path d={folding.shape === 'boat' ? 'M188 246L300 160L412 246M300 160V285' : folding.shape === 'crane' ? 'M300 100V285M224 246L375 246' : 'M300 154V294M200 165L300 225L400 165'} fill="none" stroke="#a9957b" strokeWidth="2" strokeDasharray="7 7" opacity=".72" />}
-      {folding.step < 4 && <path className="fold-next-crease" d={foldNextCrease[folding.shape][folding.step]} fill="none" stroke="#b76b56" strokeWidth="2.5" strokeDasharray="7 6" />}
-      {folding.step === 4 && folding.shape === 'boat' && <path d="M188 225L300 124L414 225M300 124V276" fill="none" stroke="#8d7866" strokeWidth="2" strokeDasharray="5 5" />}
-      {folding.step === 4 && folding.shape === 'crane' && <circle cx="302" cy="151" r="3" fill="#8d7866" />}
-    </svg></div>
-    <p className="mini-fold-instruction" aria-live="polite">{foldInstructions[folding.shape][folding.step]}</p>
-    <div className="mini-controls mini-controls-center"><button className="quiet-button" disabled={folding.step === 0} onClick={() => setFolding({ step: folding.step - 1 })}><Undo2 size={14} /> Undo fold</button><button className="quiet-button" onClick={() => setReplay((value) => value + 1)}><RotateCcw size={14} /> Repeat step</button><button className="primary-button" disabled={folding.step === 4} onClick={() => setFolding({ step: folding.step + 1 })}>{folding.step === 3 ? 'Finish fold' : 'Next fold'}</button><button className="quiet-button" onClick={() => setFolding({ step: 0 })}>Restart</button></div>
-    <p className="mini-help">Take every fold at your own pace. You can undo or repeat any step.</p>
-  </div>;
-}
 
 function GardenMotif({ kind }: { kind: GardenKind }) {
   if (kind === 'scrap') return <><path d="M-29-21L24-25L29 22L-23 27Z" fill="#d4bd9f" stroke="#9c846d" strokeWidth="1.5" /><path d="M-17-4H15M-13 5H19M-18 14H10" stroke="#a28d77" opacity=".5" /></>;
@@ -427,25 +362,29 @@ function OrchardActivity({ state, setState }: Pick<Props, 'state' | 'setState'>)
   const [phase, setPhase] = useState<'ready' | 'playing' | 'done'>('ready');
   const [score, setScore] = useState(0);
   const [seconds, setSeconds] = useState(30);
-  const [fruit, setFruit] = useState<FallingFruit[]>([]);
+  const [fruit, setFruit] = useState<Array<Pick<FallingFruit, 'id' | 'kind'>>>([]);
   const [halves, setHalves] = useState<SlicedHalf[]>([]);
-  const [trail, setTrail] = useState<Point[]>([]);
+  const [round, setRound] = useState(0);
+  const fruitNodes = useRef(new Map<number, SVGGElement>());
+  const trailNode = useRef<SVGPolylineElement>(null);
   const board = useRef<SVGSVGElement>(null);
   const fruits = useRef<FallingFruit[]>([]);
-  const trailPoints = useRef<Point[]>([]);
+  const trailPoints = useRef<Array<Point & { at: number }>>([]);
   const previousPoint = useRef<Point | null>(null);
   const slicing = useRef(false);
   const scoreRef = useRef(0);
   const startedAt = useRef(0);
-  const lastPaint = useRef(0);
   const randomId = () => Math.random();
   const start = () => {
     fruits.current = [];
     trailPoints.current = [];
     scoreRef.current = 0;
-    setFruit([]); setHalves([]); setTrail([]); setScore(0); setSeconds(30);
+    previousPoint.current = null;
+    slicing.current = false;
+    trailNode.current?.setAttribute('points', '');
+    setFruit([]); setHalves([]); setScore(0); setSeconds(30);
     startedAt.current = performance.now();
-    lastPaint.current = 0;
+    setRound((value) => value + 1);
     setPhase('playing');
   };
   useEffect(() => {
@@ -453,6 +392,7 @@ function OrchardActivity({ state, setState }: Pick<Props, 'state' | 'setState'>)
     let frame = 0;
     let previous = performance.now();
     let nextSpawn = previous + 250;
+    let displayedSeconds = 30;
     const animate = (now: number) => {
       const dt = Math.min((now - previous) / 1000, .04);
       previous = now;
@@ -461,30 +401,41 @@ function OrchardActivity({ state, setState }: Pick<Props, 'state' | 'setState'>)
       if (remain <= 0) {
         setPhase('done');
         setState((current) => ({ ...current, orchard: { best: Math.max(current.orchard.best, scoreRef.current) } }));
-        setSeconds(0); setFruit([...fruits.current]);
+        slicing.current = false; previousPoint.current = null;
+        trailPoints.current = []; trailNode.current?.setAttribute('points', '');
+        setSeconds(0);
         return;
       }
+      let rosterChanged = false;
       if (now >= nextSpawn) {
         const x = 45 + Math.random() * 510;
         fruits.current = [...fruits.current, { id: randomId(), x, y: 390, vx: (Math.random() - .5) * 260, vy: -(570 + Math.random() * 170), kind: Math.floor(Math.random() * fruitPalette.length), spin: Math.random() * 30 - 15 }];
         nextSpawn = now + Math.max(390, 820 - elapsed * 9) + Math.random() * 240;
+        rosterChanged = true;
       }
-      fruits.current = fruits.current.map((item) => ({ ...item, x: item.x + item.vx * dt, y: item.y + item.vy * dt, vy: item.vy + 760 * dt, spin: item.spin + item.vx * dt * .08 })).filter((item) => item.y < 450 && item.x > -60 && item.x < 660);
-      if (trailPoints.current.length && !slicing.current) {
-        trailPoints.current = trailPoints.current.slice(-10).slice(1);
+      // Only mounts/removals go through React; movement paints on every display frame.
+      for (const item of fruits.current) {
+        item.x += item.vx * dt;
+        item.y += item.vy * dt + 380 * dt * dt;
+        item.vy += 760 * dt;
+        item.spin += item.vx * dt * .08;
+        fruitNodes.current.get(item.id)?.setAttribute('transform', `translate(${item.x} ${item.y}) rotate(${item.spin})`);
       }
-      if (now - lastPaint.current > 48) {
-        setFruit([...fruits.current]);
-        setTrail([...trailPoints.current]);
-        setSeconds(Math.ceil(remain));
-        setScore(scoreRef.current);
-        lastPaint.current = now;
+      const visible = fruits.current.filter((item) => item.y < 450 && item.x > -60 && item.x < 660);
+      rosterChanged ||= visible.length !== fruits.current.length;
+      fruits.current = visible;
+      if (rosterChanged) setFruit(visible.map(({ id, kind }) => ({ id, kind })));
+      trailPoints.current = trailPoints.current.filter((point) => now - point.at < 160);
+      trailNode.current?.setAttribute('points', trailPoints.current.map((point) => `${point.x},${point.y}`).join(' '));
+      if (Math.ceil(remain) !== displayedSeconds) {
+        displayedSeconds = Math.ceil(remain);
+        setSeconds(displayedSeconds);
       }
       frame = requestAnimationFrame(animate);
     };
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
-  }, [phase, setState]);
+  }, [phase, round, setState]);
   const pointAt = (event: ReactPointerEvent<SVGSVGElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     return { x: clamp((event.clientX - rect.left) / rect.width, 0, 1) * 600, y: clamp((event.clientY - rect.top) / rect.height, 0, 1) * 420 };
@@ -493,7 +444,7 @@ function OrchardActivity({ state, setState }: Pick<Props, 'state' | 'setState'>)
     const previous = previousPoint.current ?? point;
     const sliceDx = point.x - previous.x;
     const sliceDy = point.y - previous.y;
-    const sliceAngle = Math.atan2(sliceDy, sliceDx || 1);
+    const sliceAngle = Math.atan2(sliceDy, sliceDx);
     const sliced = new Set<number>();
     const newHalves: SlicedHalf[] = [];
     fruits.current.forEach((item) => {
@@ -513,11 +464,10 @@ function OrchardActivity({ state, setState }: Pick<Props, 'state' | 'setState'>)
       scoreRef.current += sliced.size;
       fruits.current = fruits.current.filter((item) => !sliced.has(item.id));
       setHalves((current) => [...current, ...newHalves]);
-      setFruit([...fruits.current]); setScore(scoreRef.current);
+      setFruit(fruits.current.map(({ id, kind }) => ({ id, kind }))); setScore(scoreRef.current);
     }
     previousPoint.current = point;
-    trailPoints.current = [...trailPoints.current, point].slice(-12);
-    setTrail([...trailPoints.current]);
+    trailPoints.current = [...trailPoints.current, { ...point, at: performance.now() }].slice(-24);
   };
   const finishSlice = () => { slicing.current = false; previousPoint.current = null; };
   return <div className="mini-activity-body mini-arcade">
@@ -527,7 +477,12 @@ function OrchardActivity({ state, setState }: Pick<Props, 'state' | 'setState'>)
       <path d="M0 350Q150 327 300 350T600 345V420H0Z" fill="#d9dfcd" opacity=".7" />
       <path d="M0 353Q150 330 300 353T600 348" fill="none" stroke="#9eaa8c" strokeWidth="2" opacity=".7" />
       <path d="M45 387Q155 373 265 388M345 393Q451 378 562 390" fill="none" stroke="#b9a98d" strokeWidth="1.5" opacity=".6" />
-      {fruit.map((item) => <g key={item.id} transform={`translate(${item.x} ${item.y}) rotate(${item.spin})`}><FruitArtwork kind={item.kind} style={fruitPalette[item.kind]} /></g>)}
+      {fruit.map((item) => <g key={item.id} className="mini-orchard-fruit" ref={(node) => {
+        if (!node) { fruitNodes.current.delete(item.id); return; }
+        fruitNodes.current.set(item.id, node);
+        const live = fruits.current.find((entry) => entry.id === item.id);
+        if (live) node.setAttribute('transform', `translate(${live.x} ${live.y}) rotate(${live.spin})`);
+      }}><FruitArtwork kind={item.kind} style={fruitPalette[item.kind]} /></g>)}
       {halves.map((half) => {
         const clipId = `orchard-${half.id}`;
         const dx = Math.cos(half.cutAngle) * 32;
@@ -540,7 +495,7 @@ function OrchardActivity({ state, setState }: Pick<Props, 'state' | 'setState'>)
           <g className="mini-fruit-half" style={animationStyle} onAnimationEnd={() => setHalves((current) => current.filter((item) => item.id !== half.id))} clipPath={`url(#${clipId})`}><FruitArtwork kind={half.kind} style={fruitPalette[half.kind]} /><path d={`M${half.cutX - dx} ${half.cutY - dy}L${half.cutX + dx} ${half.cutY + dy}`} fill="none" stroke="#f8e7c8" strokeWidth="3.5" strokeLinecap="round" /></g>
         </g>;
       })}
-      {trail.length > 1 && <polyline points={trail.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#fffaf0" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" opacity=".92"/>}
+      <polyline ref={trailNode} fill="none" stroke="#fffaf0" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" opacity=".92" pointerEvents="none"/>
       {phase !== 'playing' && <g><rect x="80" y="145" width="440" height="130" rx="8" fill="#fffaf0" opacity=".94" stroke="#c5b5a0"/><text x="300" y="194" textAnchor="middle" className="mini-game-overlay-title">{phase === 'ready' ? 'A little orchard break' : 'Lovely picking'}</text><text x="300" y="226" textAnchor="middle" className="mini-game-overlay-copy">{phase === 'ready' ? 'Swipe through the fruit as it drifts by.' : `You gathered ${score} ${score === 1 ? 'fruit' : 'fruits'}. Take that with you.`}</text><text x="300" y="250" textAnchor="middle" className="mini-game-overlay-copy">{phase === 'ready' ? 'No misses to worry about.' : 'Ready for another round?'}</text></g>}
     </svg>
     <div className="mini-controls mini-controls-center"><button className="primary-button" onClick={start}><RotateCcw size={14}/>{phase === 'ready' ? 'Start Orchard Sweep' : 'Play again'}</button></div>
@@ -723,6 +678,8 @@ function CloversAscent({ state, setState }: Pick<Props, 'state' | 'setState'>) {
 }
 
 export function MindfulnessMinigames({ state, setState, onSupport }: Props) {
+  const keepKeysBest = useCallback((best: number) => setState((previous) => best > previous.keys.best ? { ...previous, keys: { best } } : previous), [setState]);
+  const keepStackBest = useCallback((best: number) => setState((previous) => best > previous.stack.best ? { ...previous, stack: { best } } : previous), [setState]);
   const current = state.current;
   const gamesPageRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -736,8 +693,8 @@ export function MindfulnessMinigames({ state, setState, onSupport }: Props) {
       <div className="mini-topbar">{current ? <button className="mini-back" onClick={() => open(null)}><ArrowLeft size={16} /> Back to minigames</button> : <span className="mini-topbar-spacer" />}<button className="mini-support" onClick={onSupport}><ShieldCheck size={15} /> Get support</button></div>
       {current ? <div key={current} className="mini-paper-in"><div className="mini-intro"><h3>{currentName}</h3><p>{activities.find((activity) => activity.id === current)?.hint}</p></div>
         {current === 'breath' && <BreathActivity state={state} setState={setState} />}
-        {current === 'doodles' && <DoodlesActivity state={state} setState={setState} />}
-        {current === 'folding' && <FoldingActivity state={state} setState={setState} />}
+        {current === 'keys' && <PetalKeys best={state.keys.best} onBest={keepKeysBest} />}
+        {current === 'stack' && <PatchworkStack best={state.stack.best} onBest={keepStackBest} />}
         {current === 'garden' && <GardenActivity state={state} setState={setState} />}
         {current === 'ripples' && <RipplesActivity state={state} setState={setState} />}
         {current === 'rocks' && <RocksActivity state={state} setState={setState} />}
