@@ -1,4 +1,15 @@
-import { toSvg } from 'html-to-image';
+import { getFontEmbedCSS, toSvg } from 'html-to-image';
+
+let pageFonts: Promise<string> | undefined;
+
+export function warmPageFonts() {
+  // SVG snapshots need their own font data. Cache only the public font CSS,
+  // never journal content, so page turns keep the same lettering and wrapping.
+  return pageFonts ??= getFontEmbedCSS(document.body, { preferredFontFormat: 'woff2' }).catch(() => {
+    pageFonts = undefined;
+    throw new Error('Page fonts are unavailable');
+  });
+}
 
 export type PaperSnapshot = {
   node: HTMLElement;
@@ -81,6 +92,8 @@ export function mountCopy(snapshot: PaperSnapshot, parent: HTMLElement) {
 
 // This is a temporary, local image of the page. It is never saved or uploaded.
 export async function rasterizePage(snapshot: PaperSnapshot, parent: HTMLElement) {
+  const fontEmbedCSS = await warmPageFonts();
+  if (!parent.isConnected) throw new Error('Page turn has already finished');
   const node = mountCopy(snapshot, parent);
   try {
     const textScroll = new Map(Array.from(node.querySelectorAll('textarea'), (input) => [input, input.scrollTop]));
@@ -119,7 +132,7 @@ export async function rasterizePage(snapshot: PaperSnapshot, parent: HTMLElement
     const properties = Array.from(getComputedStyle(node)).filter((property) => property !== 'font-size');
     const svg = await toSvg(node, {
       width: snapshot.width, height: snapshot.height,
-      skipFonts: true,
+      fontEmbedCSS,
       includeStyleProperties: properties,
       style: { left: '0', top: '0', margin: '0', position: 'relative' },
     });

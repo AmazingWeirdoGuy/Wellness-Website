@@ -3,23 +3,56 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wellness Diary</title>
+    <link rel="preload" href="/fonts/lora-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/typography.css" />
+    <title>Wellness Diary | By Rungphob Lertvilaivithaya</title>
     <meta name="description" content="Wellness Diary by Rungphob Lertvilaivithaya: a private space for check-ins, writing, breathing, and gentle reflection." />
     <meta name="author" content="Rungphob Lertvilaivithaya" />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://wellnessdiary.org/" />
-    <meta property="og:title" content="Wellness Diary" />
+    <meta property="og:title" content="Wellness Diary | By Rungphob Lertvilaivithaya" />
     <meta property="og:description" content="Wellness Diary by Rungphob Lertvilaivithaya: a private space for check-ins, writing, breathing, and gentle reflection." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://wellnessdiary.org/" />
     <meta property="og:site_name" content="Wellness Diary" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Wellness Diary" />
+    <meta property="og:image" content="https://wellnessdiary.org/favicon.png" />
+    <meta property="og:image:alt" content="Wellness Diary logo" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Wellness Diary | By Rungphob Lertvilaivithaya" />
     <meta name="twitter:description" content="Wellness Diary by Rungphob Lertvilaivithaya: a private space for check-ins, writing, breathing, and gentle reflection." />
+    <meta name="twitter:image" content="https://wellnessdiary.org/favicon.png" />
+    <meta name="twitter:image:alt" content="Wellness Diary logo" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" type="image/png" href="/favicon.png" sizes="96x96" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"WebSite","name":"Wellness Diary","url":"https://wellnessdiary.org/","description":"Wellness Diary by Rungphob Lertvilaivithaya: a private space for check-ins, writing, breathing, and gentle reflection.","publisher":{"@type":"Person","name":"Rungphob Lertvilaivithaya","alternateName":"Ronnie","url":"https://wellnessdiary.org/about/"}}
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://wellnessdiary.org/#website",
+            "name": "Wellness Diary",
+            "url": "https://wellnessdiary.org/",
+            "description": "Wellness Diary by Rungphob Lertvilaivithaya: a private space for check-ins, writing, breathing, and gentle reflection.",
+            "inLanguage": "en",
+            "creator": { "@id": "https://wellnessdiary.org/about/#founder" },
+            "publisher": { "@id": "https://wellnessdiary.org/about/#founder" }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://wellnessdiary.org/about/#founder",
+            "name": "Rungphob Lertvilaivithaya",
+            "givenName": "Rungphob",
+            "familyName": "Lertvilaivithaya",
+            "alternateName": "Ronnie",
+            "url": "https://wellnessdiary.org/about/",
+            "description": "Rungphob Lertvilaivithaya, also known as Ronnie, is a high school student and the founder and creator of Wellness Diary.",
+            "image": "https://wellnessdiary.org/founder-rungphob.webp",
+            "email": "mailto:ronnie111555@gmail.com",
+            "mainEntityOfPage": { "@id": "https://wellnessdiary.org/about/#webpage" }
+          }
+        ]
+      }
     </script>
   </head>
   <body>

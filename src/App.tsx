@@ -26,11 +26,24 @@ type Section = 'contents' | 'checkin' | 'letout' | 'guided' | 'minigames' | 'kin
 type InfoPage = 'about' | 'contact' | 'terms' | 'privacy';
 const CONTACT_EMAIL = 'ronnie111555@gmail.com';
 const SITE_ORIGIN = 'https://wellnessdiary.org';
+const founderSchema = {
+  '@type': 'Person',
+  '@id': `${SITE_ORIGIN}/about/#founder`,
+  name: 'Rungphob Lertvilaivithaya',
+  givenName: 'Rungphob',
+  familyName: 'Lertvilaivithaya',
+  alternateName: 'Ronnie',
+  url: `${SITE_ORIGIN}/about/`,
+  description: 'Rungphob Lertvilaivithaya, also known as Ronnie, is a high school student and the founder and creator of Wellness Diary.',
+  image: `${SITE_ORIGIN}/founder-rungphob.webp`,
+  email: `mailto:${CONTACT_EMAIL}`,
+  mainEntityOfPage: { '@id': `${SITE_ORIGIN}/about/#webpage` },
+} as const;
 
 const publicPageMeta = {
   about: {
-    title: 'About Rungphob Lertvilaivithaya | Wellness Diary',
-    description: 'Meet Rungphob Lertvilaivithaya, the student creator and wellbeing advocate behind Wellness Diary.',
+    title: 'Rungphob Lertvilaivithaya (Ronnie) | Wellness Diary Founder',
+    description: 'Meet Rungphob Lertvilaivithaya (Ronnie), the student founder of Wellness Diary. Learn why he created this private space for journaling and mindfulness.',
   },
   contact: {
     title: 'Contact Rungphob Lertvilaivithaya | Wellness Diary',
@@ -133,33 +146,35 @@ function LegalLinks({ onOpen }: { onOpen: (page: InfoPage) => void }) {
 }
 
 function AboutSpread({ publicPage = false }: { publicPage?: boolean }) {
-  const Heading = publicPage ? 'h1' : 'h2';
+  const FounderHeading = publicPage ? 'h1' : 'h2';
+  const GreetingHeading = publicPage ? 'h2' : 'h3';
   return (
     <div className="about-spread">
       <section className="about-panel about-intro">
-        <div className="eyebrow">little about this place</div>
-        <Heading id="info-page-title">Made for the moments between.</Heading>
+        <div className="eyebrow">A little about this place</div>
+        <h2>Made for the moments between.</h2>
         <div className="about-copy">
           <p>Wellness Diary is a quiet, self-guided space for noticing what is true, putting words somewhere safe for this moment, and making a little room to breathe.</p>
           <p>It was made with the belief that reflection does not need to be polished to be useful. You can arrive tired, uncertain, hopeful, or unfinished. The page will meet you there.</p>
           <p className="about-mantra">Take what helps. Leave what does not. There is no right way to use these pages.</p>
         </div>
       </section>
-      <section className="about-panel about-founder">
+      <section className="about-panel about-founder" id="founder" aria-labelledby="info-page-title">
         <div className="eyebrow">Meet the founder</div>
         <div className="founder-header">
           <div className="founder-portrait">
             <img src="/founder-rungphob.webp" alt="Portrait of Rungphob Lertvilaivithaya" />
           </div>
           <div className="founder-identity">
-            <p className="founder-name">Rungphob Lertvilaivithaya</p>
+            <FounderHeading id="info-page-title" className="founder-name">Rungphob Lertvilaivithaya</FounderHeading>
+            <p className="founder-byline">Founder and creator of Wellness Diary</p>
             <div className="founder-roles" aria-label="Student, Creator, Wellbeing Advocate">
               <span>Student</span><span>Creator</span><span>Wellbeing Advocate</span>
             </div>
           </div>
         </div>
         <div className="founder-copy">
-          <h3>Hi, you can call me Ronnie.</h3>
+          <GreetingHeading>Hi, you can call me Ronnie.</GreetingHeading>
           <p>I’m a high school student who cares about mental wellbeing and enjoys using technology and creativity to make useful things for others.</p>
           <p>I started Wellness Diary because I wanted to create somewhere people could pause, write honestly, and give themselves a little breathing room. As a student, I know how much school, expectations, and figuring out your future can take up in your head. I’m still finding my way through it, too.</p>
           <p>I’m constantly learning and working to make this space more thoughtful, useful, and welcoming. If you have feedback, an idea, or just want to say hi, I’d love to hear from you.</p>
@@ -179,7 +194,7 @@ function ContactContent() {
       <div className="eyebrow">A note from the other side</div>
       <h1 id="public-info-title">We would like to hear from you.</h1>
       <div className="info-copy">
-        <p>For questions, accessibility notes, or thoughtful feedback about Wellness Diary, send a note and we will read it with care.</p>
+        <p>Get in touch with <a href="/about/">Rungphob Lertvilaivithaya (Ronnie)</a>, the founder of Wellness Diary, for questions, accessibility notes, or thoughtful feedback. I would love to hear from you.</p>
         <a className="contact-link" href={`mailto:${CONTACT_EMAIL}`}><Mail size={17} strokeWidth={1.4} /> {CONTACT_EMAIL} <ArrowRight size={15} strokeWidth={1.4} /></a>
         <p className="info-small">Please do not send urgent or crisis information by email. Wellness Diary is not a monitored crisis service.</p>
       </div>
@@ -214,41 +229,35 @@ function SeoHead({ page }: { page: keyof typeof publicPageMeta }) {
     canonical.href = canonicalUrl;
     const structuredData = document.createElement('script');
     structuredData.type = 'application/ld+json';
-    structuredData.textContent = JSON.stringify(page === 'about'
-      ? {
-          '@context': 'https://schema.org',
-          '@type': 'AboutPage',
-          name: metadata.title,
-          description: metadata.description,
-          url: canonicalUrl,
-          mainEntity: {
-            '@type': 'Person',
-            name: 'Rungphob Lertvilaivithaya',
-            alternateName: 'Ronnie',
-            jobTitle: 'Student, Creator, Wellbeing Advocate',
-            image: `${SITE_ORIGIN}/founder-rungphob.webp`,
-            email: `mailto:${CONTACT_EMAIL}`,
-          },
-        }
-      : {
-          '@context': 'https://schema.org',
-          '@type': 'ContactPage',
-          name: metadata.title,
-          description: metadata.description,
-          url: canonicalUrl,
-          mainEntity: {
-            '@type': 'Person',
-            name: 'Rungphob Lertvilaivithaya',
-            alternateName: 'Ronnie',
-            email: `mailto:${CONTACT_EMAIL}`,
-          },
-        });
+    structuredData.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': page === 'about' ? ['AboutPage', 'ProfilePage'] : 'ContactPage',
+      '@id': `${canonicalUrl}#webpage`,
+      name: metadata.title,
+      description: metadata.description,
+      url: canonicalUrl,
+      inLanguage: 'en',
+      isPartOf: {
+        '@type': 'WebSite',
+        '@id': `${SITE_ORIGIN}/#website`,
+        name: 'Wellness Diary',
+        url: `${SITE_ORIGIN}/`,
+        creator: { '@id': founderSchema['@id'] },
+      },
+      mainEntity: founderSchema,
+    });
     document.head.appendChild(structuredData);
     document.title = metadata.title;
     setMeta('meta[name="description"]', { name: 'description' }, metadata.description);
     setMeta('meta[property="og:title"]', { property: 'og:title' }, metadata.title);
     setMeta('meta[property="og:description"]', { property: 'og:description' }, metadata.description);
     setMeta('meta[property="og:url"]', { property: 'og:url' }, canonicalUrl);
+    setMeta('meta[property="og:type"]', { property: 'og:type' }, page === 'about' ? 'profile' : 'website');
+    setMeta('meta[property="og:image"]', { property: 'og:image' }, founderSchema.image);
+    setMeta('meta[property="og:image:alt"]', { property: 'og:image:alt' }, 'Rungphob Lertvilaivithaya, founder of Wellness Diary');
+    setMeta('meta[name="twitter:card"]', { name: 'twitter:card' }, 'summary');
+    setMeta('meta[name="twitter:image"]', { name: 'twitter:image' }, founderSchema.image);
+    setMeta('meta[name="twitter:image:alt"]', { name: 'twitter:image:alt' }, 'Rungphob Lertvilaivithaya, founder of Wellness Diary');
     setMeta('meta[name="twitter:title"]', { name: 'twitter:title' }, metadata.title);
     setMeta('meta[name="twitter:description"]', { name: 'twitter:description' }, metadata.description);
     return () => {
@@ -267,7 +276,6 @@ function SeoHead({ page }: { page: keyof typeof publicPageMeta }) {
 }
 
 function PublicInfoPage({ page }: { page: 'about' | 'contact' }) {
-  const metadata = publicPageMeta[page];
   return (
     <>
       <SeoHead page={page} />
@@ -281,7 +289,7 @@ function PublicInfoPage({ page }: { page: 'about' | 'contact' }) {
             <a className="quiet-button" href="/"><ArrowLeft size={15} /> Back to journal</a>
           </div>
           {page === 'about' ? <AboutSpread publicPage /> : <ContactContent />}
-          <div className="info-page-bottom"><span>Wellness Diary</span><span>{metadata.description}</span></div>
+          <div className="info-page-bottom"><span>Wellness Diary</span><nav className="info-footer-links" aria-label="Site"><a href="/about/">About Rungphob Lertvilaivithaya</a><a href="/contact/">Contact</a></nav></div>
         </article>
       </main>
     </>
@@ -291,7 +299,7 @@ function PublicInfoPage({ page }: { page: 'about' | 'contact' }) {
 function InfoPageView({ page, onClose }: { page: InfoPage; onClose: () => void }) {
   const content: Record<InfoPage, { eyebrow: string; title: string; body: ReactNode }> = {
     about: {
-      eyebrow: 'little about this place',
+      eyebrow: 'A little about this place',
       title: 'Made for the moments between.',
       body: (
         <>
@@ -368,7 +376,7 @@ function Cover({ onOpen, onSupport, onInfo }: { onOpen: () => void; onSupport: (
       <div className="cover-inner">
         <div className="cover-copy">
           <div className="cover-kicker eyebrow">A private place to return to</div>
-          <h1>Wellness <em>Diary</em></h1>
+          <h1><span className="cover-word cover-word-wellness">Wellness</span><em className="cover-word cover-word-diary">Diary</em></h1>
           <p className="cover-tagline">A little room to breathe.</p>
           <div className="cover-actions">
             <button className="primary-button" onClick={onOpen} data-testid="button-open-journal">
@@ -384,10 +392,10 @@ function Cover({ onOpen, onSupport, onInfo }: { onOpen: () => void; onSupport: (
           <div className="cover-mark-frame" />
           <img className="cover-mark-logo" src="/wellness-diary-mark.svg" alt="" />
           <div className="cover-mark-line" />
-          <div className="cover-mark-word">for the things<br />you carry</div>
+          <div className="cover-mark-word">For the things<br />you carry</div>
         </div>
       </div>
-      <div className="cover-footnote eyebrow"><span>01</span> — no account · no history · just this moment</div>
+      <div className="cover-footnote eyebrow"><span>01</span> — No account · no history · just this moment</div>
       <div className="cover-legal"><LegalLinks onOpen={onInfo} /></div>
     </main>
   );
@@ -427,7 +435,7 @@ function Header({
           <span className="brand-name">Wellness Diary</span>
         </button>
         <div className="top-actions">
-          <span className="session-note"><LockKeyhole size={12} /> Only held in this session</span>
+          <span className="session-note"><LockKeyhole size={12} /> Private · this session</span>
           <nav className="journal-links" aria-label="Site">
             <a href="/about/">About us</a>
             <a href="/contact/">Contact</a>
@@ -473,7 +481,7 @@ function CheckInPage({
           <div className="sheet-rubric eyebrow"><span>Today, as it is</span><span className="page-no">01 / 08</span></div>
           <label className="prompt-label">How are you arriving here?</label>
           <p className="page-subtitle">There is no right answer. Notice what is true without needing to fix it.</p>
-          <div className="divider-note">name what’s present</div>
+          <div className="divider-note">Name what’s present</div>
           <div className="feelings" role="group" aria-label="Choose feelings">
             {feelings.map((feeling) => (
               <button
@@ -607,8 +615,8 @@ function KindPage() {
           <div className="sheet-rubric eyebrow"><span>Tucked in for later</span><span className="page-no">09 / 10</span></div>
           <p className="prompt-label">A few words to keep nearby.</p>
           <div className="notes-stack" aria-live="polite">
-            <div className="kind-note"><span className="eyebrow">a note for you</span><p>{notes[0]}</p></div>
-            <div className="kind-note"><span className="eyebrow">another note</span><p>{notes[1]}</p></div>
+            <div className="kind-note"><span className="eyebrow">A note for you</span><p>{notes[0]}</p></div>
+            <div className="kind-note"><span className="eyebrow">Another note</span><p>{notes[1]}</p></div>
           </div>
         </div>
       </section>
@@ -616,7 +624,7 @@ function KindPage() {
         <div className="sheet-content" tabIndex={0} role="region" aria-label="Kind words for a friend">
           <div className="sheet-rubric eyebrow"><span>Leave one here</span><span className="page-no">10 / 10</span></div>
           <p className="prompt-label">What would you say to a dear friend?</p>
-          <div className="kind-note" aria-live="polite"><span className="eyebrow">your note</span><p>{notes[2]}</p></div>
+          <div className="kind-note" aria-live="polite"><span className="eyebrow">Your note</span><p>{notes[2]}</p></div>
           <div className="kind-actions">
             <button className="quiet-button" onClick={refreshNotes} data-testid="button-kind-refresh"><Sparkles size={14} /> Refresh options</button>
           </div>
@@ -631,7 +639,7 @@ function ContentsPage({ onChange }: { onChange: (section: Section) => void }) {
     <div className="spread" data-testid="page-contents">
       <section className="sheet">
         <div className="sheet-content" tabIndex={0} role="region" aria-label="Welcome to your journal">
-          <div className="sheet-rubric eyebrow"><span>Wellness Diary</span><span className="page-no">index</span></div>
+          <div className="sheet-rubric eyebrow"><span>Wellness Diary</span><span className="page-no">Index</span></div>
           <p className="prompt-label">A place to begin, or begin again.</p>
           <p className="page-subtitle">No account. No saved history. Just a quiet set of pages for this visit.</p>
           <div className="support-strip"><LockKeyhole size={17} strokeWidth={1.3} /><div><strong>Private by design</strong>We don’t save or send your entries. Close this page and this session is gone.</div></div>
@@ -639,7 +647,7 @@ function ContentsPage({ onChange }: { onChange: (section: Section) => void }) {
       </section>
       <section className="sheet">
         <div className="sheet-content" tabIndex={0} role="region" aria-label="Journal contents">
-          <div className="sheet-rubric eyebrow"><span>Turn to a page</span><span className="page-no">contents</span></div>
+          <div className="sheet-rubric eyebrow"><span>Turn to a page</span><span className="page-no">Contents</span></div>
           <div className="contents-grid">
             {sections.slice(1).map(({ id, label, short }) => (
               <button className="contents-item" key={id} onClick={() => onChange(id)} data-testid={`button-contents-${id}`}>
@@ -694,6 +702,7 @@ function Journal({ onHome }: { onHome: () => void }) {
   const { prepareTurn, isTurning, busy, finishTurn } = useBookTurn(bookFrameRef, active);
   const [infoPage, setInfoPage] = useState<InfoPage | null>(null);
   const [showSupport, setShowSupport] = useState(false);
+  const [sessionNoticeOpen, setSessionNoticeOpen] = useState(true);
   const [showBurn, setShowBurn] = useState(false);
   const [burningPage, setBurningPage] = useState<Section | null>(null);
   const burnTimer = useRef<number | null>(null);
@@ -765,11 +774,11 @@ function Journal({ onHome }: { onHome: () => void }) {
 
   return (
     <main className="journal-shell">
-      <Header active={active} onChange={navigateTo} onHome={() => { queuedPage.current = null; finishTurn(); onHome(); }} onSupport={() => setShowSupport(true)} />
+      <Header active={active} onChange={navigateTo} onHome={() => { queuedPage.current = null; finishTurn(); setSessionNoticeOpen(true); onHome(); }} onSupport={() => setShowSupport(true)} />
       <div className="journal-main">
         <div className="page-meta">
           <div>
-            <div className="eyebrow">a quiet evening, page by page</div>
+            <div className="eyebrow">A quiet moment, page by page</div>
             <h2 className="page-title">{activeLabel}</h2>
           </div>
           <div className="page-count">{active === 'contents' ? 'Your open cover' : 'Active memory only'}</div>
@@ -814,9 +823,22 @@ function Journal({ onHome }: { onHome: () => void }) {
         </div>
       </div>
       <footer className="footer-note">
+        <p className="creator-credit">Created by <a href="/about/" rel="author">Rungphob Lertvilaivithaya</a></p>
         <p>Wellness Diary is a self-guided reflection tool, not therapy or a monitored crisis service. If you need immediate help, contact local emergency support.</p>
         <LegalLinks onOpen={setInfoPage} />
       </footer>
+      {sessionNoticeOpen && (
+        <aside className="session-notice" role="dialog" aria-label="Privacy reminder">
+          <div className="session-notice-copy">
+            <LockKeyhole size={17} strokeWidth={1.4} aria-hidden="true" />
+            <div>
+              <strong>A private visit</strong>
+              <p>Nothing here is tracked, saved, or sent. Your entries stay in this session and disappear when you leave.</p>
+            </div>
+          </div>
+          <button className="quiet-button" onClick={() => setSessionNoticeOpen(false)}>I understand</button>
+        </aside>
+      )}
       {showSupport && <SupportModal onClose={() => setShowSupport(false)} />}
       {showBurn && <BurnModal onCancel={() => setShowBurn(false)} onConfirm={confirmBurn} />}
       {infoPage && <InfoPageView page={infoPage} onClose={() => setInfoPage(null)} />}

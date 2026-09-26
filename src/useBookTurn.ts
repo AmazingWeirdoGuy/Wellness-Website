@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { capturePages, mountCopy, rasterizePage, type PaperSnapshot } from './bookPageSnapshot';
+import { capturePages, mountCopy, rasterizePage, warmPageFonts, type PaperSnapshot } from './bookPageSnapshot';
 import { blankPaper, createBookRenderer, type TurnLeaf } from './bookTurnRenderer';
 import { turnProgress } from './bookTurnGeometry';
 import { bookTurnTiming } from './bookTurnTiming';
@@ -33,6 +33,7 @@ export function useBookTurn(frameRef: RefObject<HTMLDivElement | null>, pageKey:
       if (!frame || busy.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       const pages = frame.querySelectorAll<HTMLElement>(':scope > .spread > .sheet');
       if (pages.length !== 2) return;
+      void warmPageFonts().catch(() => { /* A turn can retry or use intact DOM text. */ });
       try { getRenderer(frame, pages[1].offsetTop > pages[0].offsetTop + 1); } catch { /* The intact DOM fallback remains available. */ }
     };
     const idle = 'requestIdleCallback' in window ? window.requestIdleCallback(warm, { timeout: 250 }) : null;
@@ -47,7 +48,7 @@ export function useBookTurn(frameRef: RefObject<HTMLDivElement | null>, pageKey:
 
   function prepareTurn(direction: PageDirection, count: number) {
     const frame = frameRef.current;
-    if (!frame || busy.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!frame || busy.current || document.fonts.status !== 'loaded' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const pages = capturePages(frame);
     if (pages.length !== 2 || !pages[0].width) return;
     pending.current = { direction, count, pages, stacked: pages[1].top > pages[0].top + 1 };
