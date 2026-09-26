@@ -40,7 +40,8 @@
 .mini-orchard-board { aspect-ratio: 10 / 7; max-height: 420px; touch-action: none; cursor: crosshair; }
 .mini-fruit-half { pointer-events: none; animation: mini-fruit-split .72s cubic-bezier(.22, .7, .36, 1) forwards; }
 @keyframes mini-fruit-split { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--half-x), var(--half-y)) rotate(var(--half-rotation)); opacity: 0; } }
-.mini-clover-board { aspect-ratio: 6 / 5; max-height: 500px; outline: none; }
+.mini-clover-board { aspect-ratio: 6 / 5; max-height: 500px; outline: none; touch-action: none; user-select: none; }
+.mini-clover-board[data-playing="true"] { cursor: ew-resize; }
 .mini-clover-board:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; }
 .mini-game-stats { display: flex; justify-content: center; gap: clamp(.65rem, 3vw, 2rem); margin: .8rem 0; color: var(--ink-soft); font: var(--font-caption); }
 .mini-game-stats span { display: inline-flex; align-items: baseline; gap: .35rem; }
@@ -48,7 +49,8 @@
 .mini-game-overlay-title { fill: var(--burgundy); font: var(--font-heading); }
 .mini-game-overlay-copy { fill: var(--ink-soft); font: var(--font-caption); }
 .mini-jump-controls { touch-action: none; }
-.mini-jump-controls > button:first-child, .mini-jump-controls > button:last-child { min-width: 3.2rem; font-size: var(--text-heading); touch-action: none; }
+.mini-jump-controls > button:first-child, .mini-jump-controls > button:last-child { min-width: 4.5rem; min-height: 3rem; font-size: var(--text-heading); touch-action: none; user-select: none; }
+.mini-jump-controls > .quiet-button:active:not(:disabled) { background: #e5c4ac; border-color: var(--terra); }
 .mini-art-panel { background: #f4e9d6; }
 .mini-art-panel svg { display: block; width: 100%; max-height: 380px; }
 .mini-flower-panel { max-width: 600px; margin: 0 auto; background: radial-gradient(circle at 50% 40%, #f8efe0, #e9dcc7); }

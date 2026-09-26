@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
 import { ArrowLeft, Check, Pause, Play, RotateCcw, ShieldCheck, Square, Trash2, Undo2, Volume2, VolumeX } from 'lucide-react';
+import { CLOVER_BOARD_WIDTH, stepCloverSteering, wrapCloverX, type CloverDirection } from './cloverMovement';
 import './mindfulness.css';
 
 type ActivityId = 'breath' | 'doodles' | 'folding' | 'garden' | 'ripples' | 'rocks' | 'water' | 'orchard' | 'clover';
@@ -560,8 +561,15 @@ function CloversAscent({ state, setState }: Pick<Props, 'state' | 'setState'>) {
   const playerRef = useRef<CloverPlayer>({ x: 300, y: 420, vx: 0, vy: 0 });
   const platformsRef = useRef<Platform[]>([]);
   const cameraRef = useRef(0);
-  const keys = useRef({ left: false, right: false });
+  const keys = useRef(new Set<string>());
+  const heldButtons = useRef(new Map<number, CloverDirection>());
+  const dragTarget = useRef<{ pointerId: number; x: number } | null>(null);
   const bestScore = useRef(0);
+  const clearInput = () => {
+    keys.current.clear();
+    heldButtons.current.clear();
+    dragTarget.current = null;
+  };
   const reset = () => {
     const initialPlatforms = [{ id: 0, x: 182, y: 466, width: 236 }, { id: 1, x: 240, y: 382, width: 120 }, { id: 2, x: 320, y: 302, width: 120 }, { id: 3, x: 240, y: 222, width: 120 }, { id: 4, x: 320, y: 142, width: 120 }, { id: 5, x: 240, y: 62, width: 120 }];
     const initialPlayer = { x: 300, y: 420, vx: 0, vy: -680 };
@@ -569,33 +577,53 @@ function CloversAscent({ state, setState }: Pick<Props, 'state' | 'setState'>) {
     playerRef.current = initialPlayer;
     cameraRef.current = 0;
     bestScore.current = 0;
-    keys.current = { left: false, right: false };
+    clearInput();
     setPlatforms(initialPlatforms); setPlayer(initialPlayer); setCamera(0); setScore(0);
   };
-  const start = () => { reset(); setPhase('playing'); };
+  const start = () => {
+    reset();
+    setPhase('playing');
+    board.current?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+    board.current?.focus({ preventScroll: true });
+  };
   useEffect(() => {
     if (phase !== 'playing') return;
-    board.current?.focus();
+    board.current?.focus({ preventScroll: true });
     let frame = 0;
     let last = performance.now();
-    let paint = 0;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') { keys.current.left = true; event.preventDefault(); }
-      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') { keys.current.right = true; event.preventDefault(); }
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select'))) return;
+      const key = event.key.toLowerCase();
+      if (!['arrowleft', 'arrowright', 'a', 'd'].includes(key)) return;
+      keys.current.add(key);
+      dragTarget.current = null;
+      event.preventDefault();
     };
     const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') keys.current.left = false;
-      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') keys.current.right = false;
+      keys.current.delete(event.key.toLowerCase());
+    };
+    const releaseInput = () => {
+      clearInput();
+      playerRef.current = { ...playerRef.current, vx: 0 };
+      last = performance.now();
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', releaseInput);
+    document.addEventListener('visibilitychange', releaseInput);
     const animate = (now: number) => {
       const dt = Math.min((now - last) / 1000, .035);
       last = now;
       const old = playerRef.current;
-      const vx = keys.current.left === keys.current.right ? old.vx * Math.pow(.04, dt) : (keys.current.left ? -310 : 310);
-      const next = { x: old.x + vx * dt, y: old.y + old.vy * dt + 690 * dt * dt * .5, vx, vy: old.vy + 690 * dt };
-      next.x = next.x < -26 ? 626 : next.x > 626 ? -26 : next.x;
+      // The most recently pressed direction wins; releasing it restores any
+      // other key still held, including mixed arrow-key / A-D inputs.
+      let direction: CloverDirection = 0;
+      for (const key of keys.current) direction = key === 'arrowleft' || key === 'a' ? -1 : 1;
+      for (const held of heldButtons.current.values()) direction = held;
+      const horizontal = stepCloverSteering(old, direction, dt, dragTarget.current?.x);
+      const next = { x: wrapCloverX(horizontal.x), y: old.y + old.vy * dt + 690 * dt * dt * .5, vx: horizontal.vx, vy: old.vy + 690 * dt };
       const nextCamera = Math.max(cameraRef.current, 270 - next.y);
       if (next.vy > 0) {
         const oldFeet = old.y + 19, feet = next.y + 19;
@@ -613,12 +641,15 @@ function CloversAscent({ state, setState }: Pick<Props, 'state' | 'setState'>) {
       }
       playerRef.current = next;
       cameraRef.current = nextCamera;
-      let nextPlatforms = platformsRef.current.filter((item) => item.y + nextCamera > -650 && item.y + nextCamera < 900);
+      const existingPlatforms = platformsRef.current;
+      let nextPlatforms = existingPlatforms.filter((item) => item.y + nextCamera > -650 && item.y + nextCamera < 900);
+      let platformsChanged = nextPlatforms.length !== existingPlatforms.length;
       let top = Math.min(...nextPlatforms.map((item) => item.y));
       while (top > next.y - 650) {
         const x = 24 + Math.random() * 444;
         top -= 74 + Math.random() * 34;
         nextPlatforms = [...nextPlatforms, { id: Math.random(), x, y: top, width: 90 + Math.random() * 32 }];
+        platformsChanged = true;
       }
       platformsRef.current = nextPlatforms;
       const altitude = Math.max(0, Math.floor((420 - next.y) / 10));
@@ -627,34 +658,67 @@ function CloversAscent({ state, setState }: Pick<Props, 'state' | 'setState'>) {
       // soon as that sensor crosses the bottom edge instead of waiting for
       // the whole character to disappear or an off-screen leaf to catch her.
       if (next.vy > 0 && next.y + nextCamera + 25 >= 500) {
+        clearInput();
+        setPlayer({ ...next }); setCamera(nextCamera);
         setScore(bestScore.current);
         setPhase('done'); setState((current) => ({ ...current, clover: { best: Math.max(current.clover.best, bestScore.current) } }));
         return;
       }
-      if (now - paint > 35) {
-        setPlayer({ ...next }); setPlatforms([...nextPlatforms]); setCamera(nextCamera); setScore(bestScore.current); paint = now;
-      }
+      setPlayer({ ...next }); setCamera(nextCamera); setScore(bestScore.current);
+      if (platformsChanged) setPlatforms(nextPlatforms);
       frame = requestAnimationFrame(animate);
     };
     frame = requestAnimationFrame(animate);
-    return () => { cancelAnimationFrame(frame); window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); keys.current = { left: false, right: false }; };
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', releaseInput);
+      document.removeEventListener('visibilitychange', releaseInput);
+      clearInput();
+    };
   }, [phase, setState]);
-  const hold = (direction: 'left' | 'right', value: boolean) => { keys.current[direction] = value; };
+  const steerToPointer = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    dragTarget.current = { pointerId: event.pointerId, x: clamp((event.clientX - rect.left) / rect.width * CLOVER_BOARD_WIDTH, 26, CLOVER_BOARD_WIDTH - 26) };
+  };
+  const releasePointer = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (dragTarget.current?.pointerId === event.pointerId) dragTarget.current = null;
+  };
+  const hold = (event: ReactPointerEvent<HTMLButtonElement>, direction: CloverDirection) => {
+    if (phase !== 'playing' || event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    heldButtons.current.set(event.pointerId, direction);
+    dragTarget.current = null;
+    board.current?.focus({ preventScroll: true });
+  };
+  const releaseButton = (event: ReactPointerEvent<HTMLButtonElement>) => { heldButtons.current.delete(event.pointerId); };
+  const spriteOffsets = player.x < 26 ? [0, CLOVER_BOARD_WIDTH] : player.x > CLOVER_BOARD_WIDTH - 26 ? [0, -CLOVER_BOARD_WIDTH] : [0];
   return <div className="mini-activity-body mini-arcade">
     <div className="mini-game-stats"><span>Height <strong>{score} m</strong></span><span>Best <strong>{Math.max(state.clover.best, score)} m</strong></span><span>Move <strong>← →</strong></span></div>
-    <svg ref={board} className="mini-clover-board" viewBox="0 0 600 500" preserveAspectRatio="none" tabIndex={0} role="img" aria-label="Clover’s Ascent. Move left and right with arrow keys or A and D, or use the controls below. Clover bounces automatically from the leaf platforms." >
+    <svg ref={board} className="mini-clover-board" data-playing={phase === 'playing'} viewBox="0 0 600 500" preserveAspectRatio="none" tabIndex={0} role="img" aria-label="Clover’s Ascent. Steer with arrow keys, A and D, or drag across the game. Clover bounces automatically from the leaf platforms."
+      onPointerDown={(event) => {
+        if (phase !== 'playing' || !event.isPrimary || event.button !== 0) return;
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        event.currentTarget.focus({ preventScroll: true });
+        steerToPointer(event);
+      }}
+      onPointerMove={(event) => { if (phase === 'playing' && dragTarget.current?.pointerId === event.pointerId) steerToPointer(event); }}
+      onPointerUp={releasePointer} onPointerCancel={releasePointer} onLostPointerCapture={releasePointer}>
       <rect width="600" height="500" fill="#f3ead8" />
       <path d={`M0 ${460 + camera}Q150 ${444 + camera} 300 ${461 + camera}T600 ${454 + camera}V500H0Z`} fill="#d9dfcd" opacity=".64" />
       {platforms.map((item) => { const y = item.y + camera; return y > -45 && y < 535 ? <g key={item.id} transform={`translate(${item.x} ${y})`}><path d={`M0 4Q${item.width * .22} -5 ${item.width * .48} 1T${item.width} 0`} fill="none" stroke="#667b5f" strokeWidth="3" strokeLinecap="round"/><path d={`M${item.width * .42} 0Q${item.width * .47} -13 ${item.width * .57} -10`} fill="none" stroke="#788a68" strokeWidth="2"/><ellipse cx={item.width * .53} cy="-9" rx="9" ry="5" transform={`rotate(-22 ${item.width * .53} -9)`} fill="#9cab83" stroke="#667b5f" strokeWidth="1.4"/></g> : null; })}
-      <g transform={`translate(${player.x} ${player.y + camera})`} className="mini-clover-character"><path d="M-7 9Q-19 16-15 25M7 9Q19 16 15 25" fill="none" stroke="#667b5f" strokeWidth="3" strokeLinecap="round"/><path d="M-3 10L-8 21M3 10L8 21" stroke="#667b5f" strokeWidth="2.5" strokeLinecap="round"/><g fill="#91a27b" stroke="#667b5f" strokeWidth="2"><circle cx="0" cy="-5" r="12"/><circle cx="-10" cy="-14" r="8"/><circle cx="10" cy="-14" r="8"/><circle cx="-9" cy="3" r="8"/><circle cx="9" cy="3" r="8"/></g><circle cx="0" cy="-5" r="3" fill="#e5cb96" stroke="#9e835e" strokeWidth="1.3"/><circle cx="-3" cy="-6" r="1.1" fill="#493b34" stroke="none"/><circle cx="3" cy="-6" r="1.1" fill="#493b34" stroke="none"/></g>
+      {spriteOffsets.map((offset) => <g key={offset} transform={`translate(${player.x + offset} ${player.y + camera})`} className="mini-clover-character"><path d="M-7 9Q-19 16-15 25M7 9Q19 16 15 25" fill="none" stroke="#667b5f" strokeWidth="3" strokeLinecap="round"/><path d="M-3 10L-8 21M3 10L8 21" stroke="#667b5f" strokeWidth="2.5" strokeLinecap="round"/><g fill="#91a27b" stroke="#667b5f" strokeWidth="2"><circle cx="0" cy="-5" r="12"/><circle cx="-10" cy="-14" r="8"/><circle cx="10" cy="-14" r="8"/><circle cx="-9" cy="3" r="8"/><circle cx="9" cy="3" r="8"/></g><circle cx="0" cy="-5" r="3" fill="#e5cb96" stroke="#9e835e" strokeWidth="1.3"/><circle cx="-3" cy="-6" r="1.1" fill="#493b34" stroke="none"/><circle cx="3" cy="-6" r="1.1" fill="#493b34" stroke="none"/></g>)}
       {phase !== 'playing' && <g><rect x="80" y="165" width="440" height="150" rx="8" fill="#fffaf0" opacity=".95" stroke="#c5b5a0"/><text x="300" y="211" textAnchor="middle" className="mini-game-overlay-title">{phase === 'ready' ? 'Clover’s Ascent' : 'The climb is over'}</text><text x="300" y="245" textAnchor="middle" className="mini-game-overlay-copy">{phase === 'ready' ? 'Guide Clover from leaf to leaf.' : `Clover slipped past the last leaf at ${score} m.`}</text><text x="300" y="271" textAnchor="middle" className="mini-game-overlay-copy">{phase === 'ready' ? 'The bounce is automatic.' : 'Want to try the climb again?'}</text></g>}
     </svg>
     <div className="mini-controls mini-controls-center mini-jump-controls">
-      <button className="quiet-button" aria-label="Move Clover left" onPointerDown={() => hold('left', true)} onPointerUp={() => hold('left', false)} onPointerLeave={() => hold('left', false)} onPointerCancel={() => hold('left', false)}>←</button>
+      <button className="quiet-button" aria-label="Move Clover left" disabled={phase !== 'playing'} onPointerDown={(event) => hold(event, -1)} onPointerUp={releaseButton} onPointerCancel={releaseButton} onLostPointerCapture={releaseButton}>←</button>
       <button className="primary-button" onClick={start}><RotateCcw size={14}/>{phase === 'ready' ? 'Start the climb' : 'Climb again'}</button>
-      <button className="quiet-button" aria-label="Move Clover right" onPointerDown={() => hold('right', true)} onPointerUp={() => hold('right', false)} onPointerLeave={() => hold('right', false)} onPointerCancel={() => hold('right', false)}>→</button>
+      <button className="quiet-button" aria-label="Move Clover right" disabled={phase !== 'playing'} onPointerDown={(event) => hold(event, 1)} onPointerUp={releaseButton} onPointerCancel={releaseButton} onLostPointerCapture={releaseButton}>→</button>
     </div>
-    <p className="mini-help">Use ← → or A and D, or press and hold the leaf buttons. Clover bounces on its own.</p>
+    <p className="mini-help">Use ← → or A and D, drag across the game, or hold the arrow buttons. Release to stop steering. Clover bounces on its own.</p>
   </div>;
 }
 

@@ -26,6 +26,7 @@ type Section = 'contents' | 'checkin' | 'letout' | 'guided' | 'minigames' | 'kin
 type InfoPage = 'about' | 'contact' | 'terms' | 'privacy';
 const CONTACT_EMAIL = 'ronnie111555@gmail.com';
 const SITE_ORIGIN = 'https://wellnessdiary.org';
+const BRAND_LOGO_URL = `${SITE_ORIGIN}/wellness-diary-mark.webp`;
 const founderSchema = {
   '@type': 'Person',
   '@id': `${SITE_ORIGIN}/about/#founder`,
@@ -202,6 +203,26 @@ function ContactContent() {
   );
 }
 
+function SiteFooter({ onOpen }: { onOpen?: (page: InfoPage) => void }) {
+  return (
+    <footer className="site-footer">
+      <div className="site-footer-main">
+        <a className="site-footer-brand" href="/" aria-label="Wellness Diary home">
+          <img src="/wellness-diary-mark.webp" alt="" />
+          <span>Wellness Diary</span>
+        </a>
+        <p>A quiet place for check-ins, writing, breathing, and gentle reflection.</p>
+        <nav className="site-footer-links" aria-label="Footer">
+          <a href="/about/">About</a>
+          <a href="/contact/">Contact</a>
+          {onOpen && <><button onClick={() => onOpen('terms')}>Terms</button><button onClick={() => onOpen('privacy')}>Privacy</button></>}
+        </nav>
+      </div>
+      <div className="site-footer-bottom"><span>Private by design · this visit stays in your browser</span><span>© {new Date().getFullYear()} Wellness Diary</span></div>
+    </footer>
+  );
+}
+
 function SeoHead({ page }: { page: keyof typeof publicPageMeta }) {
   useEffect(() => {
     const metadata = publicPageMeta[page];
@@ -242,6 +263,8 @@ function SeoHead({ page }: { page: keyof typeof publicPageMeta }) {
         '@id': `${SITE_ORIGIN}/#website`,
         name: 'Wellness Diary',
         url: `${SITE_ORIGIN}/`,
+        image: BRAND_LOGO_URL,
+        logo: BRAND_LOGO_URL,
         creator: { '@id': founderSchema['@id'] },
       },
       mainEntity: founderSchema,
@@ -253,11 +276,11 @@ function SeoHead({ page }: { page: keyof typeof publicPageMeta }) {
     setMeta('meta[property="og:description"]', { property: 'og:description' }, metadata.description);
     setMeta('meta[property="og:url"]', { property: 'og:url' }, canonicalUrl);
     setMeta('meta[property="og:type"]', { property: 'og:type' }, page === 'about' ? 'profile' : 'website');
-    setMeta('meta[property="og:image"]', { property: 'og:image' }, founderSchema.image);
-    setMeta('meta[property="og:image:alt"]', { property: 'og:image:alt' }, 'Rungphob Lertvilaivithaya, founder of Wellness Diary');
+    setMeta('meta[property="og:image"]', { property: 'og:image' }, BRAND_LOGO_URL);
+    setMeta('meta[property="og:image:alt"]', { property: 'og:image:alt' }, 'Wellness Diary logo');
     setMeta('meta[name="twitter:card"]', { name: 'twitter:card' }, 'summary');
-    setMeta('meta[name="twitter:image"]', { name: 'twitter:image' }, founderSchema.image);
-    setMeta('meta[name="twitter:image:alt"]', { name: 'twitter:image:alt' }, 'Rungphob Lertvilaivithaya, founder of Wellness Diary');
+    setMeta('meta[name="twitter:image"]', { name: 'twitter:image' }, BRAND_LOGO_URL);
+    setMeta('meta[name="twitter:image:alt"]', { name: 'twitter:image:alt' }, 'Wellness Diary logo');
     setMeta('meta[name="twitter:title"]', { name: 'twitter:title' }, metadata.title);
     setMeta('meta[name="twitter:description"]', { name: 'twitter:description' }, metadata.description);
     return () => {
@@ -283,13 +306,13 @@ function PublicInfoPage({ page }: { page: 'about' | 'contact' }) {
         <article className={`info-page public-info-page ${page === 'about' ? 'info-page-about' : ''}`}>
           <div className="info-page-top">
             <a className="info-brand-lockup" href="/" aria-label="Wellness Diary home">
-              <img className="brand-mark-image" src="/wellness-diary-mark.svg" alt="" />
+              <img className="brand-mark-image" src="/wellness-diary-mark.webp" alt="" />
               <span className="brand-name">Wellness Diary</span>
             </a>
             <a className="quiet-button" href="/"><ArrowLeft size={15} /> Back to journal</a>
           </div>
           {page === 'about' ? <AboutSpread publicPage /> : <ContactContent />}
-          <div className="info-page-bottom"><span>Wellness Diary</span><nav className="info-footer-links" aria-label="Site"><a href="/about/">About Rungphob Lertvilaivithaya</a><a href="/contact/">Contact</a></nav></div>
+          <SiteFooter />
         </article>
       </main>
     </>
@@ -350,7 +373,7 @@ function InfoPageView({ page, onClose }: { page: InfoPage; onClose: () => void }
       <div className={`info-page ${page === 'about' ? 'info-page-about' : ''}`}>
         <div className="info-page-top">
           <span className="info-brand-lockup">
-            <img className="brand-mark-image" src="/wellness-diary-mark.svg" alt="" />
+            <img className="brand-mark-image" src="/wellness-diary-mark.webp" alt="" />
             <span className="brand-name">Wellness Diary</span>
           </span>
           <button className="quiet-button" onClick={onClose} data-testid="button-close-info"><X size={15} /> Back to journal</button>
@@ -360,7 +383,7 @@ function InfoPageView({ page, onClose }: { page: InfoPage; onClose: () => void }
           <h2 id="info-page-title">{current.title}</h2>
           <div className="info-copy">{current.body}</div>
         </div>}
-        <div className="info-page-bottom"><span>Wellness Diary</span><span>Made for a little room to breathe.</span></div>
+        <SiteFooter />
       </div>
     </div>
   );
@@ -387,12 +410,21 @@ function Cover({ onOpen, onSupport, onInfo }: { onOpen: () => void; onSupport: (
             </button>
           </div>
         </div>
-        <div className="cover-mark" aria-hidden="true">
-          <div className="cover-mark-spine" />
-          <div className="cover-mark-frame" />
-          <img className="cover-mark-logo" src="/wellness-diary-mark.svg" alt="" />
-          <div className="cover-mark-line" />
-          <div className="cover-mark-word">For the things<br />you carry</div>
+        <div className="cover-book" aria-hidden="true">
+          <div className="cover-mark">
+            <div className="cover-mark-back" />
+            <div className="cover-mark-spine" />
+            <div className="cover-mark-pages cover-mark-pages-right" />
+            <div className="cover-mark-pages cover-mark-pages-top" />
+            <div className="cover-mark-pages cover-mark-pages-bottom" />
+            <div className="cover-mark-front">
+              <div className="cover-mark-hinge" />
+              <div className="cover-mark-frame" />
+              <img className="cover-mark-logo" src="/wellness-diary-mark.webp" alt="" />
+              <div className="cover-mark-line" />
+              <div className="cover-mark-word">For the things<br />you carry</div>
+            </div>
+          </div>
         </div>
       </div>
       <div className="cover-footnote eyebrow"><span>01</span> — No account · no history · just this moment</div>
@@ -431,7 +463,7 @@ function Header({
     <>
       <header className="journal-topbar">
         <button className="brand-lockup" onClick={onHome} data-testid="button-brand-home">
-          <span className="brand-stamp"><img className="brand-mark-image" src="/wellness-diary-mark.svg" alt="" /></span>
+          <span className="brand-stamp"><img className="brand-mark-image" src="/wellness-diary-mark.webp" alt="" /></span>
           <span className="brand-name">Wellness Diary</span>
         </button>
         <div className="top-actions">
@@ -822,11 +854,7 @@ function Journal({ onHome }: { onHome: () => void }) {
           <button className="quiet-button session-clear" onClick={clearSession} data-testid="button-clear-session"><RotateCcw size={13} /> Clear session</button>
         </div>
       </div>
-      <footer className="footer-note">
-        <p className="creator-credit">Created by <a href="/about/" rel="author">Rungphob Lertvilaivithaya</a></p>
-        <p>Wellness Diary is a self-guided reflection tool, not therapy or a monitored crisis service. If you need immediate help, contact local emergency support.</p>
-        <LegalLinks onOpen={setInfoPage} />
-      </footer>
+      <SiteFooter onOpen={setInfoPage} />
       {sessionNoticeOpen && (
         <aside className="session-notice" role="dialog" aria-label="Privacy reminder">
           <div className="session-notice-copy">
