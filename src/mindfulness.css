@@ -2,12 +2,13 @@
 .minigames-sheet .sheet-content { width: 100%; margin: 0 auto; }
 .minigames-sheet .sheet-rubric { margin-bottom: .7rem; }
 .mini-games-page { padding: 2.5rem clamp(1.5rem, 3vw, 3rem); }
+.mini-selection-spread .sheet { padding: 2rem clamp(1.5rem, 3vw, 3rem); }
 .mini-note-page { display: flex; align-items: stretch; background: radial-gradient(circle at 76% 16%, rgba(185, 144, 111, .1), transparent 37%), #faf3e5; }
 .mini-note-page .sheet-content { display: flex; flex-direction: column; width: 100%; }
-.mini-note-content { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; flex: 1 0 auto; max-width: 36ch; margin: auto; padding: 2rem 0 3rem; }
-.mini-note-content h3 { margin: 1.2rem 0 1.5rem; color: var(--burgundy); font: var(--font-title); letter-spacing: var(--tracking-heading); }
+.mini-note-content { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; flex: 1 0 auto; max-width: 36ch; margin: auto; padding: 1rem 0; }
+.mini-note-content h3 { margin: 1rem 0; color: var(--burgundy); font: var(--font-title); letter-spacing: var(--tracking-heading); }
 .mini-note-content p { margin: 0 0 1.1rem; color: var(--ink-soft); font: var(--font-body); }
-.mini-note-flower { display: block; width: min(100%, 230px); margin: 1.2rem auto .5rem; opacity: .86; }
+.mini-note-flower { display: block; width: min(100%, 170px); margin: .75rem auto .5rem; opacity: .86; }
 .mini-note-end { align-self: center; color: var(--terra); text-align: center; }
 .mini-topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; min-height: 2.4rem; }
 .mini-back, .mini-support { display: inline-flex; align-items: center; gap: .5rem; min-height: 2.7rem; border: 0; background: transparent; color: var(--burgundy); font: var(--font-caption); text-transform: none; letter-spacing: var(--tracking-label); }
@@ -17,14 +18,15 @@
 .mini-intro { text-align: center; margin: .5rem auto 1rem; }
 .mini-intro h3 { margin: 0; color: var(--burgundy); font: var(--font-heading); letter-spacing: var(--tracking-heading); }
 .mini-intro p { margin: .55rem 0 0; color: var(--ink-soft); font: var(--font-caption); letter-spacing: var(--tracking-label); text-transform: none; }
-.mini-app-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem .45rem; justify-items: center; max-width: 430px; margin: 1.1rem auto .5rem; }
-.mini-app { display: flex; flex-direction: column; align-items: center; width: 100%; min-height: 145px; border: 0; border-radius: 16px; padding: .2rem .15rem .35rem; background: transparent; color: var(--ink); text-align: center; cursor: pointer; transition: transform .2s ease, background-color .2s ease; }
+.mini-launcher .mini-intro { margin: .25rem auto .75rem; }
+.mini-app-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem .45rem; justify-items: center; max-width: 430px; margin: .75rem auto .25rem; }
+.mini-app { display: flex; flex-direction: column; align-items: center; width: 100%; min-height: 132px; border: 0; border-radius: 16px; padding: .2rem .15rem .35rem; background: transparent; color: var(--ink); text-align: center; cursor: pointer; transition: transform .2s ease, background-color .2s ease; }
 .mini-app:hover { background: rgba(205, 181, 145, .14); transform: translateY(-3px); }
 .mini-app:active { transform: translateY(1px) scale(.96); }
 .mini-app:focus-visible, .mini-back:focus-visible, .mini-support:focus-visible, .mini-controls button:focus-visible, .mini-palette-button:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; }
-.mini-app-icon { display: block; width: min(100%, 95px); aspect-ratio: 1; border: 1px solid rgba(108, 84, 70, .2); border-radius: 21%; overflow: hidden; box-shadow: .15rem .3rem .45rem rgba(66, 50, 38, .13), inset 0 0 0 2px rgba(255,255,255,.35); }
+.mini-app-icon { display: block; width: min(100%, 86px); aspect-ratio: 1; border: 1px solid rgba(108, 84, 70, .2); border-radius: 21%; overflow: hidden; box-shadow: .15rem .3rem .45rem rgba(66, 50, 38, .13), inset 0 0 0 2px rgba(255,255,255,.35); }
 .mini-app-icon svg { display: block; width: 100%; height: 100%; }
-.mini-app strong { margin-top: .5rem; color: var(--burgundy); font: var(--font-control); }
+.mini-app strong { margin-top: .4rem; color: var(--burgundy); font: var(--font-control); }
 .mini-app small { margin-top: .3rem; color: var(--ink-soft); font-size: var(--text-caption); line-height: var(--leading-compact); }
 .mini-note, .mini-help { max-width: 65ch; margin: 1.5rem auto .2rem; color: var(--ink-soft); font-size: var(--text-caption); line-height: var(--leading-body); text-align: center; }
 .mini-activity-body { max-width: 820px; margin: 0 auto; }
@@ -118,12 +120,16 @@
 .mini-garden-list { display: flex; flex-wrap: wrap; gap: .4rem; margin: .8rem 0; }
 .mini-garden-list button { min-height: 2rem; font-size: var(--text-small); }
 @keyframes mini-paper-in { from { opacity: 0; transform: translateY(10px) rotate(-.3deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
-@media (max-width: 780px) {
-  .mini-app-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem .6rem; }
-  .mini-app { min-height: 0; min-width: 0; padding: .35rem .15rem .6rem; }
-  .mini-app-icon { width: min(100%, 88px); }
-  .mini-app strong { overflow-wrap: normal; }
+@media (max-width: 1100px) {
+  /* The same hint is shown inside each game; keep the narrow launcher easy to scan. */
   .mini-app small { display: none; }
+}
+@media (max-width: 780px) {
+  .mini-selection-spread .sheet { padding: 1.5rem 1.1rem; }
+  .mini-app-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem .6rem; }
+  .mini-app { min-height: 0; min-width: 0; padding: .35rem .15rem .6rem; }
+  .mini-app-icon { width: min(100%, 82px); }
+  .mini-app strong { overflow-wrap: normal; }
   .mini-launcher .mini-intro h3 { display: none; }
   .minigames-sheet { padding: 1.5rem 1.1rem; }
   .minigames-sheet .sheet-content { scroll-margin-top: .75rem; }
