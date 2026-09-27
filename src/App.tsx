@@ -9,6 +9,7 @@ import {
   Heart,
   LockKeyhole,
   Mail,
+  Menu,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -21,6 +22,7 @@ import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { BurnEffect, BURN_DURATION_MS } from './BurnEffect';
 import { MindfulnessMinigames, createMindfulnessState } from './MindfulnessMinigames';
 import { useBookTurn, type PageDirection } from './useBookTurn';
+import { useDialogFocus } from './useDialogFocus';
 
 type Section = 'contents' | 'checkin' | 'letout' | 'guided' | 'minigames' | 'kind';
 type InfoPage = 'about' | 'contact' | 'terms' | 'privacy';
@@ -320,6 +322,7 @@ function PublicInfoPage({ page }: { page: 'about' | 'contact' }) {
 }
 
 function InfoPageView({ page, onClose }: { page: InfoPage; onClose: () => void }) {
+  const dialogRef = useDialogFocus(onClose);
   const content: Record<InfoPage, { eyebrow: string; title: string; body: ReactNode }> = {
     about: {
       eyebrow: 'A little about this place',
@@ -369,7 +372,7 @@ function InfoPageView({ page, onClose }: { page: InfoPage; onClose: () => void }
   const current = content[page];
 
   return (
-    <div className="info-layer" role="dialog" aria-modal="true" aria-labelledby="info-page-title">
+    <div ref={dialogRef} tabIndex={-1} className="info-layer" role="dialog" aria-modal="true" aria-labelledby="info-page-title">
       <div className={`info-page ${page === 'about' ? 'info-page-about' : ''}`}>
         <div className="info-page-top">
           <span className="info-brand-lockup">
@@ -446,6 +449,31 @@ function Header({
 }) {
   const bookmarksRef = useRef<HTMLElement | null>(null);
   const activeBookmarkRef = useRef<HTMLButtonElement | null>(null);
+  const headerRef = useRef<HTMLElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!headerRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setMenuOpen(false);
+      menuButtonRef.current?.focus({ preventScroll: true });
+    };
+    const desktop = window.matchMedia('(min-width: 781px)');
+    const closeOnDesktop = () => { if (desktop.matches) setMenuOpen(false); };
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', escape);
+    desktop.addEventListener('change', closeOnDesktop);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', escape);
+      desktop.removeEventListener('change', closeOnDesktop);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     const bookmarks = bookmarksRef.current;
@@ -461,8 +489,8 @@ function Header({
 
   return (
     <>
-      <header className="journal-topbar">
-        <button className="brand-lockup" onClick={onHome} data-testid="button-brand-home">
+      <header ref={headerRef} className="journal-topbar" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false); }}>
+        <button className="brand-lockup" onClick={() => { setMenuOpen(false); onHome(); }} data-testid="button-brand-home">
           <span className="brand-stamp"><img className="brand-mark-image" src="/wellness-diary-mark.webp" alt="" /></span>
           <span className="brand-name">Wellness Diary</span>
         </button>
@@ -476,6 +504,16 @@ function Header({
             <ShieldCheck size={14} strokeWidth={1.5} /> Support
           </button>
         </div>
+        <button ref={menuButtonRef} className="quiet-button mobile-pages-toggle" aria-expanded={menuOpen} aria-controls="mobile-journal-pages" onClick={() => setMenuOpen((open) => !open)} data-testid="button-mobile-pages">
+          {menuOpen ? <X size={17} /> : <Menu size={17} />} Pages
+        </button>
+        <nav id="mobile-journal-pages" className="mobile-pages-menu" aria-label="Pages and site links" hidden={!menuOpen}>
+          <div className="eyebrow">Your journal</div>
+          {sections.map(({ id, label, short, icon: Icon }) => <button key={id} aria-current={active === id ? 'page' : undefined} onClick={() => { setMenuOpen(false); menuButtonRef.current?.focus({ preventScroll: true }); onChange(id); }} data-testid={`button-mobile-nav-${id}`}>
+            <Icon size={17} strokeWidth={1.5} /><span>{label}</span><span className="mobile-page-number">{short}</span>
+          </button>)}
+          <div className="mobile-site-links"><a href="/about/">About us</a><a href="/contact/">Contact</a><button onClick={() => { setMenuOpen(false); menuButtonRef.current?.focus({ preventScroll: true }); onSupport(); }}><ShieldCheck size={15} /> Support</button></div>
+        </nav>
       </header>
       <nav ref={bookmarksRef} className="bookmarks" aria-label="Journal sections">
         {sections.map(({ id, label, short, icon: Icon }) => (
@@ -580,6 +618,13 @@ function WritingPage({
 }) {
   const isGuided = mode === 'guided';
   const alternatives = isGuided ? guidedPrompts : prompts.slice(1);
+  const writingRef = useRef<HTMLTextAreaElement | null>(null);
+  const choosePrompt = (next: string) => {
+    onPromptChange(next);
+    if (window.matchMedia('(max-width: 780px)').matches) {
+      writingRef.current?.closest('.writing-sheet')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    }
+  };
   return (
     <div className="spread" data-testid={`page-${mode}`}>
       <section className={`sheet writing-sheet ${burning ? 'is-burning' : ''}`}>
@@ -588,9 +633,18 @@ function WritingPage({
             <span>{isGuided ? 'A small doorway in' : 'Nothing to perform'}</span>
             <span className="page-no">{isGuided ? '05 / 08' : '03 / 08'}</span>
           </div>
+          <details className="mobile-prompt-picker">
+            <summary>Choose a writing prompt <Feather size={15} /></summary>
+            <div className="prompt-list">{(isGuided ? guidedPrompts : prompts).map((option) => <button key={option} className={`prompt-option ${option === prompt ? 'active' : ''}`} aria-pressed={option === prompt} disabled={burning} onClick={(event) => {
+              const details = event.currentTarget.closest('details');
+              if (details) { details.open = false; details.querySelector('summary')?.focus({ preventScroll: true }); }
+              choosePrompt(option);
+            }}>{option}</button>)}</div>
+          </details>
           <label className="prompt-label" htmlFor="journal-writing">{prompt}</label>
           {isGuided && <p className="page-subtitle">Take the first thought that arrives. You can leave the rest at the door.</p>}
           <textarea
+            ref={writingRef}
             id="journal-writing"
             className="writing-area"
             value={content}
@@ -620,7 +674,7 @@ function WritingPage({
               <button
                 className={`prompt-option ${alternative === prompt ? 'active' : ''}`}
                 key={alternative}
-                onClick={() => onPromptChange(alternative)}
+                onClick={() => choosePrompt(alternative)}
                 data-testid={`button-prompt-${alternative.slice(0, 18).replaceAll(' ', '-').toLowerCase()}`}
               >
                 {alternative}
@@ -694,8 +748,9 @@ function ContentsPage({ onChange }: { onChange: (section: Section) => void }) {
 }
 
 function SupportModal({ onClose }: { onClose: () => void }) {
+  const dialogRef = useDialogFocus(onClose);
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="support-title" data-testid="dialog-support">
+    <div ref={dialogRef} tabIndex={-1} className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="support-title" data-testid="dialog-support">
       <div className="modal-card">
         <button className="text-button" onClick={onClose} aria-label="Close support" data-testid="button-close-support"><X size={16} /></button>
         <div className="eyebrow">A clear note about care</div>
@@ -712,8 +767,9 @@ function SupportModal({ onClose }: { onClose: () => void }) {
 }
 
 function BurnModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+  const dialogRef = useDialogFocus(onCancel);
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="burn-title" data-testid="dialog-burn">
+    <div ref={dialogRef} tabIndex={-1} className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="burn-title" data-testid="dialog-burn">
       <div className="modal-card">
         <div className="eyebrow"><Flame size={13} /> A deliberate release</div>
         <h2 id="burn-title">Burn this page?</h2>
@@ -752,7 +808,7 @@ function Journal({ onHome }: { onHome: () => void }) {
       queuedPage.current = section;
       return;
     }
-    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    window.scrollTo({ top: 0, behavior: window.matchMedia('(max-width: 780px), (prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
     if (section === active) {
       bookFrameRef.current?.querySelectorAll('.sheet-content').forEach((page) => page.scrollTo({ top: 0 }));
       return;
@@ -824,6 +880,7 @@ function Journal({ onHome }: { onHome: () => void }) {
             data-testid="button-previous-page"
           >
             <ArrowLeft size={19} strokeWidth={1.4} />
+            <span className="page-arrow-label">Previous</span>
           </button>
           <div ref={bookFrameRef} className="page-turn-frame">
           {active === 'contents' && <ContentsPage onChange={navigateTo} />}
@@ -847,6 +904,7 @@ function Journal({ onHome }: { onHome: () => void }) {
             data-testid="button-next-page"
           >
             <ArrowRight size={19} strokeWidth={1.4} />
+            <span className="page-arrow-label">Next</span>
           </button>
         </div>
         <div className="session-bar">

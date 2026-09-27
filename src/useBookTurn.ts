@@ -11,6 +11,7 @@ export function useBookTurn(frameRef: RefObject<HTMLDivElement | null>, pageKey:
   const pending = useRef<Turn | null>(null);
   const busy = useRef(false);
   const finishRef = useRef<(() => void) | null>(null);
+  const mobileDirection = useRef<PageDirection | null>(null);
   const [isTurning, setIsTurning] = useState(false);
   const rendererRef = useRef<{ width: number; height: number; stacked: boolean; renderer: ReturnType<typeof createBookRenderer> } | null>(null);
 
@@ -30,7 +31,7 @@ export function useBookTurn(frameRef: RefObject<HTMLDivElement | null>, pageKey:
     // Page textures are still discarded as soon as their animation finishes.
     const warm = () => {
       const frame = frameRef.current;
-      if (!frame || busy.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      if (!frame || busy.current || window.matchMedia('(max-width: 780px), (prefers-reduced-motion: reduce)').matches) return;
       const pages = frame.querySelectorAll<HTMLElement>(':scope > .spread > .sheet');
       if (pages.length !== 2) return;
       void warmPageFonts().catch(() => { /* A turn can retry or use intact DOM text. */ });
@@ -49,6 +50,12 @@ export function useBookTurn(frameRef: RefObject<HTMLDivElement | null>, pageKey:
   function prepareTurn(direction: PageDirection, count: number) {
     const frame = frameRef.current;
     if (!frame || busy.current || document.fonts.status !== 'loaded' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // Flowing phone pages can have different heights. A brief paper slide keeps
+    // navigation immediate without capturing an entire long page into WebGL.
+    if (window.matchMedia('(max-width: 780px)').matches) {
+      mobileDirection.current = direction;
+      return;
+    }
     const pages = capturePages(frame);
     if (pages.length !== 2 || !pages[0].width) return;
     pending.current = { direction, count, pages, stacked: pages[1].top > pages[0].top + 1 };
@@ -58,6 +65,12 @@ export function useBookTurn(frameRef: RefObject<HTMLDivElement | null>, pageKey:
 
   useLayoutEffect(() => {
     const frame = frameRef.current;
+    if (frame && mobileDirection.current) {
+      const offset = mobileDirection.current === 'next' ? 8 : -8;
+      mobileDirection.current = null;
+      const animation = frame.animate([{ transform: `translateX(${offset}px)`, opacity: .8 }, { transform: 'translateX(0)', opacity: 1 }], { duration: 160, easing: 'ease-out' });
+      return () => animation.cancel();
+    }
     const turn = pending.current;
     if (!frame || !turn) return;
     const incoming = capturePages(frame);

@@ -682,15 +682,20 @@ export function MindfulnessMinigames({ state, setState, onSupport }: Props) {
   const keepStackBest = useCallback((best: number) => setState((previous) => best > previous.stack.best ? { ...previous, stack: { best } } : previous), [setState]);
   const current = state.current;
   const gamesPageRef = useRef<HTMLDivElement | null>(null);
+  const previousActivity = useRef(current);
   useEffect(() => {
     gamesPageRef.current?.scrollTo({ top: 0 });
+    if (current !== previousActivity.current && window.matchMedia('(max-width: 780px)').matches) {
+      gamesPageRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    }
+    previousActivity.current = current;
   }, [current]);
   const open = (activity: ActivityId | null) => setState((previous) => ({ ...previous, current: activity }));
   const currentName = activities.find((activity) => activity.id === current)?.name;
   return <div className="spread minigames-spread" data-testid="page-minigames">
     <section className="sheet minigames-sheet mini-games-page"><div ref={gamesPageRef} className="sheet-content" tabIndex={0} role="region" aria-label="Mindfulness games">
       <div className="sheet-rubric eyebrow"><span>A little room to pause</span><span className="page-no">07 / 08</span></div>
-      <div className="mini-topbar">{current ? <button className="mini-back" onClick={() => open(null)}><ArrowLeft size={16} /> Back to minigames</button> : <span className="mini-topbar-spacer" />}<button className="mini-support" onClick={onSupport}><ShieldCheck size={15} /> Get support</button></div>
+      <div className="mini-topbar">{current ? <button className="mini-back" onClick={() => open(null)}><ArrowLeft size={16} /> Back to games</button> : <span className="mini-topbar-spacer" />}<button className="mini-support" onClick={onSupport}><ShieldCheck size={15} /> Support</button></div>
       {current ? <div key={current} className="mini-paper-in"><div className="mini-intro"><h3>{currentName}</h3><p>{activities.find((activity) => activity.id === current)?.hint}</p></div>
         {current === 'breath' && <BreathActivity state={state} setState={setState} />}
         {current === 'keys' && <PetalKeys best={state.keys.best} onBest={keepKeysBest} />}

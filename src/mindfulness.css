@@ -118,6 +118,51 @@
 .mini-garden-list { display: flex; flex-wrap: wrap; gap: .4rem; margin: .8rem 0; }
 .mini-garden-list button { min-height: 2rem; font-size: var(--text-small); }
 @keyframes mini-paper-in { from { opacity: 0; transform: translateY(10px) rotate(-.3deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
-@media (max-width: 780px) { .mini-app-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.1rem .55rem; } .mini-app { min-height: 145px; } .mini-app-icon { width: min(100%, 108px); } .minigames-sheet { padding: 1.6rem 1.15rem; } .mini-note-content { max-width: 42ch; padding: 1.5rem 0; } .mini-note-flower { width: 150px; margin: .3rem auto; } .mini-controls { gap: .55rem; } }
-@media (max-width: 480px) { .mini-app-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem .35rem; } .mini-app { min-height: 140px; } .mini-app-icon { width: min(100%, 100px); } .mini-app strong { font-size: var(--text-small); } .mini-app small { font-size: var(--text-caption); } .mini-topbar { align-items: flex-start; } .mini-back, .mini-support { font-size: var(--text-caption); } .mini-controls { align-items: stretch; } .mini-controls label { flex: 1 1 100%; justify-content: space-between; } .mini-controls > button { flex: 1 1 130px; } .mini-breath-phases { flex-wrap: wrap; } .mini-breath-phases span { flex: 1 1 4.2rem; } .mini-game-stats { gap: .65rem; } .mini-game-stats span { gap: .2rem; } .mini-jump-controls > button:nth-child(2) { flex: 1 1 100%; order: -1; } }
+@media (max-width: 780px) {
+  .mini-app-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem .6rem; }
+  .mini-app { min-height: 0; min-width: 0; padding: .35rem .15rem .6rem; }
+  .mini-app-icon { width: min(100%, 88px); }
+  .mini-app strong { overflow-wrap: normal; }
+  .mini-app small { display: none; }
+  .mini-launcher .mini-intro h3 { display: none; }
+  .minigames-sheet { padding: 1.5rem 1.1rem; }
+  .minigames-sheet .sheet-content { scroll-margin-top: .75rem; }
+  .mini-note-content { max-width: 42ch; padding: .5rem 0; }
+  .mini-note-content h3 { font-size: var(--text-heading); }
+  .mini-note-flower { width: 120px; margin: .3rem auto; }
+  .mini-topbar { gap: .5rem; }
+  .mini-back, .mini-support { min-height: 44px; }
+  .mini-controls { gap: .55rem; }
+  .mini-controls button, .mini-controls select, .mini-palette-button, .mini-garden-list button { min-height: 44px; }
+  .mini-controls input[type="range"] { min-height: 44px; min-width: 0; }
+  .mini-swatches button { width: 44px; min-height: 44px; }
+  .mini-help { margin-top: 1rem; }
+  .patchwork-controls { max-width: 100%; gap: .3rem; }
+  .patchwork-controls button { min-height: 48px; }
+  .petal-touch-keys { height: 4rem; }
+  .petal-board-wrap > .arcade-overlay { bottom: 4rem; }
+  .mini-app:hover { transform: none; }
+}
+@media (max-width: 480px) {
+  .mini-app strong { font-size: var(--text-small); }
+  .mini-back, .mini-support { font-size: var(--text-caption); }
+  .mini-controls { align-items: stretch; }
+  .mini-controls label { flex: 1 1 100%; justify-content: space-between; }
+  .mini-controls > button { flex: 1 1 110px; }
+  .mini-breath-phases { flex-wrap: wrap; }
+  .mini-breath-phases span { flex: 1 1 4.2rem; }
+  .mini-game-stats { flex-wrap: wrap; gap: .65rem; }
+  .mini-game-stats span { gap: .2rem; }
+  .mini-jump-controls { display: grid; grid-template-columns: 1fr 1fr; }
+  .mini-jump-controls > button:nth-child(2) { grid-column: 1 / -1; grid-row: 1; }
+  .mini-jump-controls > button:first-child { grid-column: 1; grid-row: 2; }
+  .mini-jump-controls > button:last-child { grid-column: 2; grid-row: 2; }
+  .patchwork-layout { grid-template-columns: minmax(0, 190px) minmax(60px, 72px); gap: .65rem; }
+  .patchwork-board-wrap .arcade-overlay { gap: .65rem; padding: .65rem; }
+  .patchwork-board-wrap .arcade-overlay > .eyebrow { display: none; }
+}
+@media (max-width: 360px) {
+  .mini-app-grid { gap: .8rem .35rem; }
+  .mini-app strong { font-size: var(--text-caption); }
+}
 @media (prefers-reduced-motion: reduce) { .mini-paper-in { animation: none !important; } .mini-fruit-half { animation-duration: .2s; } .mini-app { transition: none !important; } }
