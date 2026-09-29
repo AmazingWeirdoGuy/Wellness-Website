@@ -692,7 +692,7 @@ export function MindfulnessMinigames({ state, setState, onSupport }: Props) {
   }, [current]);
   const open = (activity: ActivityId | null) => setState((previous) => ({ ...previous, current: activity }));
   const currentName = activities.find((activity) => activity.id === current)?.name;
-  return <div className={`spread minigames-spread${current ? '' : ' mini-selection-spread'}`} data-testid="page-minigames">
+  return <div className={`spread minigames-spread${current ? '' : ' mini-selection-spread'}${current === 'keys' ? ' petal-keys-spread' : ''}`} data-testid="page-minigames">
     <section className="sheet minigames-sheet mini-games-page"><div ref={gamesPageRef} className="sheet-content" tabIndex={0} role="region" aria-label="Mindfulness games">
       <div className="sheet-rubric eyebrow"><span>A little room to pause</span><span className="page-no">07 / 08</span></div>
       <div className="mini-topbar">{current ? <button className="mini-back" onClick={() => open(null)}><ArrowLeft size={16} /> Back to games</button> : <span className="mini-topbar-spacer" />}<button className="mini-support" onClick={onSupport}><ShieldCheck size={15} /> Support</button></div>

@@ -69,6 +69,94 @@
 .petal-touch-keys button:active:not(:disabled) { background: #e3c5ad; box-shadow: inset 0 -1px #c5a78c; }
 .petal-touch-keys button:focus-visible { outline: 2px solid var(--terra); outline-offset: -4px; }
 .petal-touch-keys button:disabled { opacity: .6; cursor: default; }
+.petal-game { max-width: 360px; }
+.petal-song-picker { margin: 0 auto .5rem; }
+.petal-song-picker label, .petal-song-meta { display: flex; align-items: center; justify-content: space-between; gap: .75rem; color: var(--ink-soft); font: var(--font-caption); }
+.petal-song-picker label { margin-bottom: .4rem; }
+.petal-song-picker label > span:first-child { display: inline-flex; align-items: center; gap: .45rem; color: var(--burgundy); font: var(--font-control); }
+.petal-song-picker select { width: 100%; min-width: 0; min-height: 44px; padding: .55rem 1.8rem .55rem .7rem; border: 1px solid #cabb9f; border-radius: 7px; background: #fff9ed; color: var(--burgundy); font: var(--font-control); text-overflow: ellipsis; }
+.petal-song-picker select:disabled { opacity: 1; color: var(--burgundy); cursor: default; }
+.petal-song-meta { margin-top: .35rem; font-size: var(--text-caption); gap: .5rem; }
+.petal-song-meta span:last-child { flex-shrink: 0; }
+.petal-mode { display: flex; align-items: center; gap: .2rem; margin: .55rem 0 0; padding: .2rem; border: 1px solid #d9ccb4; border-radius: 7px; background: #efe5d2; }
+.petal-mode button { min-height: 36px; padding: .35rem .7rem; border: 0; border-radius: 5px; background: transparent; color: var(--ink-soft); font: var(--font-control); }
+.petal-mode button[aria-pressed="true"] { background: #fff9ed; color: var(--burgundy); box-shadow: 0 1px 3px #59462d14; }
+.petal-mode > span { margin-left: .45rem; padding-right: .35rem; color: var(--ink-soft); font: var(--font-caption); line-height: var(--leading-compact); }
+.petal-scorebar { display: flex; align-items: center; justify-content: space-between; gap: .7rem; padding: .5rem .1rem; }
+.petal-scorebar > div { display: flex; align-items: baseline; gap: .45rem; }
+.petal-scorebar span { color: var(--ink-soft); font: var(--font-caption); }
+.petal-scorebar strong { color: var(--burgundy); font: var(--font-control); font-variant-numeric: tabular-nums; }
+.petal-scorebar > div:first-child strong { font-size: var(--text-lead); }
+.petal-scorebar .petal-chances { gap: .2rem; color: #d4c7b4; }
+.petal-chances .is-full { color: #ad795f; fill: #ecd5b5; }
+.petal-game .petal-board-wrap { max-width: 280px; border: 1px solid #b7a488; border-radius: 10px; box-shadow: 0 5px 16px #69513b14, 0 1px 0 #fffaf0 inset; overflow: hidden; }
+.petal-song-progress { display: block; width: 100%; height: 4px; appearance: none; border: 0; background: #ddd0b6; color: #8c6b4d; }
+.petal-song-progress::-webkit-progress-bar { background: #ddd0b6; }
+.petal-song-progress::-webkit-progress-value { background: #8c6b4d; transition: width .1s linear; }
+.petal-song-progress::-moz-progress-bar { background: #8c6b4d; }
+.petal-game .petal-board { aspect-ratio: 1 / 1; }
+.petal-board[data-playing="true"] { touch-action: none; cursor: pointer; }
+.petal-game .petal-touch-keys { height: 3.5rem; }
+.petal-game .petal-touch-keys button { position: relative; background: linear-gradient(#fffaf0, #efe1c7); border-top: 1px solid #bca586; box-shadow: inset 0 -5px #dfcdb0, inset 0 1px #fffdf5; transition: background .08s ease, box-shadow .08s ease; }
+.petal-game .petal-touch-keys button::before { content: ''; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; background: #8b9c7c; border-radius: 0 0 2px 2px; }
+.petal-game .petal-touch-keys button:nth-child(2)::before { background: #be7b68; }
+.petal-game .petal-touch-keys button:nth-child(3)::before { background: #9d7893; }
+.petal-game .petal-touch-keys button:nth-child(4)::before { background: #c7a160; }
+.petal-game .petal-touch-keys button[aria-pressed="true"] { background: #dfc8a4; box-shadow: inset 0 -1px #b99e78, inset 0 2px 5px #745b3820; }
+.petal-game .petal-touch-keys button:disabled { opacity: .85; }
+.petal-game .petal-touch-keys button::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: var(--sage-deep); transform: scaleX(var(--hold-progress, 0)); transform-origin: left; transition: transform .05s linear; pointer-events: none; }
+.petal-game .petal-touch-keys button[data-holding="true"] { box-shadow: inset 0 -1px #b99e78, inset 0 0 0 2px #8b9c7c; }
+.petal-song-meta > span:first-child { min-width: 0; }
+.petal-song-meta > span:last-child { flex-shrink: 0; }
+.petal-game .petal-touch-keys span { font-size: var(--text-caption); }
+.petal-game .arcade-overlay { bottom: 3.5rem; gap: .45rem; padding: .75rem; background: radial-gradient(ellipse at 50% 42%, #fff9ee, #f4e9d7f5); }
+.petal-game .arcade-overlay .eyebrow { display: none; }
+.petal-game .arcade-overlay h4 { font-size: var(--text-lead); }
+.petal-game .arcade-overlay .petal-mode { margin: .1rem 0 0; }
+.petal-mode-hint { color: var(--ink-soft); font: var(--font-caption); }
+.petal-game .arcade-overlay p { max-width: 25ch; }
+.petal-game .arcade-overlay .primary-button { min-height: 44px; border-radius: 5px; padding: .65rem 1.2rem; }
+.petal-overlay-flower { display: grid; flex-shrink: 0; place-items: center; width: 38px; height: 38px; border: 1px solid #d7c4a7; border-radius: 50%; background: #f0e3c9; color: #98704f; }
+.petal-overlay-flower svg { width: 24px; height: 24px; }
+.petal-game[data-boss="true"] .petal-overlay-flower { color: #806022; border-color: #c7a160; background: #f0dfb8; }
+.petal-game[data-boss="true"] .petal-board-wrap, .petal-game[data-boss="true"] .petal-song-picker select { border-color: #b49252; }
+.petal-game[data-boss="true"] .petal-song-picker label > span:last-child { color: #806022; }
+.petal-rehold { position: absolute; top: .65rem; left: .65rem; right: .65rem; padding: .5rem; background: #fff6e6ed; border: 1px solid #d5bc92; border-radius: 5px; color: var(--burgundy); text-align: center; font: var(--font-caption); pointer-events: none; }
+.petal-judgement { display: flex; align-items: center; justify-content: center; min-height: 2rem; color: var(--ink-soft); font: var(--font-caption); }
+.petal-judgement[data-tone="hit"] { color: var(--sage-deep); }
+.petal-judgement[data-tone="miss"] { color: var(--terra); }
+.petal-judgement span { animation: petal-feedback .2s ease-out; }
+@keyframes petal-feedback { from { opacity: .4; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.petal-game .mini-controls { flex-wrap: nowrap; gap: .4rem; margin: .15rem 0 .45rem; }
+.petal-game .mini-controls > button { flex: 1; justify-content: center; min-width: 0; min-height: 44px; padding: .4rem .5rem; border-radius: 5px; font: var(--font-caption); }
+.petal-game .mini-help { margin: .35rem auto; font-size: var(--text-caption); }
+.petal-music-credits { color: var(--ink-soft); margin-top: .35rem; font: var(--font-caption); }
+.petal-music-credits summary { min-height: 28px; text-align: center; cursor: pointer; }
+.petal-music-credits p { margin: .6rem 0; }
+.petal-music-credits a { color: var(--burgundy); text-underline-offset: 3px; }
+.petal-keys-spread .mini-games-page { padding: 1.4rem clamp(1.4rem, 3vw, 3rem); }
+.petal-keys-spread .mini-games-page .sheet-rubric { margin-bottom: .3rem; }
+.petal-keys-spread .mini-intro { display: none; }
+.petal-keys-spread .mini-topbar { margin-bottom: .4rem; }
+.petal-song-picker select:focus-visible, .petal-mode button:focus-visible, .petal-music-credits summary:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; }
+@media (max-width: 780px) {
+  .petal-keys-spread .mini-games-page { padding: 1.25rem 1rem; }
+  .petal-game .petal-touch-keys { height: 4rem; }
+  .petal-game .petal-board-wrap { max-width: 100%; }
+  .petal-game .arcade-overlay { bottom: 4rem; }
+  .petal-mode button { min-height: 44px; }
+  .petal-mode > span { font-size: var(--text-caption); }
+  .petal-music-credits summary { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .petal-judgement span { animation: none; }
+  .petal-song-progress::-webkit-progress-value, .petal-game .petal-touch-keys button { transition: none; }
+}
+@media (max-width: 360px) {
+  .petal-game .petal-overlay-flower { display: none; }
+  .petal-game .arcade-overlay { gap: .35rem; }
+  .petal-game .arcade-overlay p { line-height: var(--leading-compact); }
+}
 .patchwork-layout { display: grid; grid-template-columns: minmax(0, 190px) minmax(68px, 84px); justify-content: center; gap: 1rem; margin-top: .75rem; }
 .patchwork-board-wrap { position: relative; align-self: start; border: 1px solid #baaa92; box-shadow: .3rem .4rem 0 rgba(93,73,61,.09); }
 .patchwork-board { display: block; width: 100%; aspect-ratio: 1 / 2; background: #f3ead8; overflow: hidden; }
