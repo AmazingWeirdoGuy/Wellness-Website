@@ -1,0 +1,222 @@
+/* The first screen is the journal; the footer follows it in normal document flow.
+   Size the paper itself (not a scaled transform), so text and turn snapshots agree. */
+.journal-workspace { height: 100svh; min-height: 40rem; display: flex; flex-direction: column; overflow-anchor: none; }
+.journal-workspace .journal-topbar { flex: none; padding-block: .6rem; }
+.journal-workspace .bookmarks { flex: none; padding-top: .35rem; }
+.journal-workspace .bookmark { display: inline-flex; align-items: center; gap: .35rem; min-height: 44px; padding-block: .5rem; }
+.journal-main { display: flex; flex-direction: column; flex: 1; min-height: 0; width: min(1120px, calc(100% - 7rem)); padding: .75rem 0 .5rem; }
+.page-meta { flex: none; align-items: center; margin-bottom: .75rem; }
+.page-title { margin-top: .15rem; font: var(--font-title); }
+.page-meta > :first-child { display: flex; align-items: baseline; gap: 1rem; }
+.page-meta .page-title { order: -1; }
+.book-stage { flex: 1; min-height: 0; max-height: 46rem; }
+.page-turn-frame { height: 100%; container-type: size; container-name: journal; }
+.page-turn-frame > .spread { height: 100%; grid-template-rows: minmax(0, 1fr); grid-auto-rows: auto; }
+.page-turn-frame > .spread > .sheet { height: 100%; padding: clamp(1.1rem, 4cqh, 2rem) clamp(1.25rem, 2.5vw, 2.5rem); }
+.sheet::before { inset: .8rem; }
+.sheet-content { padding: .35rem; scrollbar-gutter: auto; }
+.sheet-rubric { margin-bottom: clamp(.75rem, 3cqh, 1.5rem); }
+.prompt-label { margin-bottom: .8rem; }
+.page-subtitle { margin-top: .75rem; }
+.divider-note { margin-block: 1.25rem; }
+.writing-area { min-height: 6rem; }
+.writing-foot { margin-top: .75rem; }
+.support-strip { margin-top: 1rem; padding: .75rem 1rem; }
+.contents-grid { gap: .5rem 1rem; }
+.contents-item { padding: .7rem 0; }
+.kind-note { min-height: 0; padding: 1.25rem 1.5rem; }
+.notes-stack { gap: 1rem; }
+.kind-note p { line-height: var(--leading-compact); }
+.kind-actions { margin-top: 1.25rem; }
+.session-bar { flex: none; margin-top: .75rem; padding: .4rem 0 0; }
+.session-clear { min-height: 40px; padding: .4rem .75rem; }
+.session-bar p svg { display: inline; vertical-align: -.1em; margin-right: .25rem; }
+.mobile-sheet-count { display: none; }
+
+/* Keep artwork and game boards proportional to the paper's available height. */
+.mini-selection-spread .mini-topbar { position: absolute; top: -.2rem; right: 0; }
+.mini-selection-spread .sheet-rubric { padding-right: 5rem; }
+.mini-selection-spread .sheet-rubric .page-no { display: none; }
+.mini-app { min-height: 0; padding-block: .2rem; }
+.mini-app-icon { width: clamp(48px, 12cqh, 78px); }
+.mini-app small { display: none; }
+.mini-app-grid { gap: .65rem .5rem; }
+.mini-note-content { flex: 1; min-height: 0; padding: 0; }
+.mini-note-content h3 { font: var(--font-heading); margin-block: .75rem; }
+.mini-note-content p { margin-bottom: .75rem; }
+.mini-note-flower { flex-shrink: 1; min-height: 0; width: clamp(64px, 19cqh, 150px); margin-block: .25rem; }
+.mini-intro { margin: .25rem auto .6rem; }
+.mini-intro p { margin-top: .25rem; }
+.minigames-spread[data-activity] .mini-games-page .sheet-rubric { display: none; }
+.page-turn-frame > .minigames-spread[data-activity] > .mini-games-page { padding-block: .75rem; }
+.minigames-spread[data-activity] .mini-intro p { display: none; }
+.mini-controls { gap: .4rem .6rem; margin-block: .6rem; }
+.mini-controls .quiet-button, .mini-controls .primary-button { min-height: 44px; padding: .4rem .65rem; }
+.mini-paper-in { animation: fade-in .2s ease-out both; }
+.mini-help, .mini-note { margin-top: .4rem; line-height: var(--leading-compact); }
+.mini-art-panel, .mini-garden-board, .mini-ripple-board, .mini-pond, .mini-water-board, .mini-orchard-board, .mini-clover-board { max-width: 100%; width: auto; margin-inline: auto; }
+.mini-garden-board, .mini-water-board { height: min(42cqh, 300px); }
+.mini-ripple-board, .mini-pond, .mini-orchard-board, .mini-clover-board { height: min(42cqh, 330px); }
+.mini-flower-panel svg { height: min(28cqh, 230px); }
+.mini-breath-cue { margin-bottom: .4rem; }
+.mini-breath-phases { margin-bottom: .4rem; }
+.patchwork-layout { grid-template-columns: minmax(0, min(29cqh, 175px)) minmax(68px, 84px); margin-top: .25rem; }
+.patchwork-controls { margin-top: .5rem; }
+
+.minigames-spread[data-activity="stack"] .mini-activity-body { display: grid; grid-template-columns: minmax(0, min(180px, calc((100cqh - 8rem) / 2))) minmax(0, 1fr); align-items: start; gap: .5rem 1rem; }
+.minigames-spread[data-activity="stack"] .patchwork-layout { display: contents; }
+.patchwork-board-wrap { grid-column: 1; grid-row: 1 / 6; }
+.patchwork-sidebar, .patchwork-controls, .minigames-spread[data-activity="stack"] .arcade-feedback,
+.minigames-spread[data-activity="stack"] .mini-controls, .minigames-spread[data-activity="stack"] .mini-help { grid-column: 2; margin: 0; width: 100%; }
+.patchwork-sidebar { display: grid; grid-template-columns: 64px 1fr; gap: .25rem .75rem; }
+.patchwork-sidebar > .eyebrow { grid-column: 1; }
+.patchwork-sidebar > svg { grid-column: 1; margin: 0; }
+.patchwork-sidebar dl { grid-column: 2; grid-row: 1 / 3; display: grid; grid-template-columns: repeat(2, 1fr); align-content: start; gap: .2rem .5rem; }
+.patchwork-sidebar dt, .patchwork-sidebar dd { margin: 0; }
+.patchwork-board-wrap .arcade-overlay { padding: .6rem; gap: .5rem; }
+.patchwork-board-wrap .arcade-overlay .eyebrow { display: none; }
+.patchwork-board-wrap .arcade-overlay h4 { font: var(--font-lead); }
+.patchwork-board-wrap .arcade-overlay p { font: var(--font-caption); }
+.patchwork-board-wrap .primary-button { min-height: 44px; padding: .5rem .75rem; }
+
+.minigames-spread[data-activity="garden"] .mini-activity-body { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; gap: .5rem; }
+.mini-garden-palette { grid-column: 1 / -1; margin: 0; }
+.mini-garden-palette > span { display: none; }
+.mini-garden-palette .mini-palette-button { flex: 0 1 auto; min-height: 44px; padding: .3rem .5rem; font: var(--font-caption); }
+.minigames-spread[data-activity="garden"] .mini-garden-board { grid-column: 1; grid-row: 2 / 4; width: 100%; height: auto; }
+.minigames-spread[data-activity="garden"] .mini-controls:not(.mini-garden-palette) { display: grid; grid-column: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; margin: 0; }
+.minigames-spread[data-activity="garden"] .mini-control-caption { display: none; }
+.minigames-spread[data-activity="garden"] .mini-controls .quiet-button,
+.minigames-spread[data-activity="garden"] .mini-controls .primary-button { min-width: 0; justify-content: center; padding-inline: .3rem; font: var(--font-caption); }
+.minigames-spread[data-activity="garden"] .mini-help, .mini-garden-list { grid-column: 1 / -1; }
+.minigames-spread[data-activity="garden"] .mini-help { margin-top: 0; }
+
+/* Give taller games a small control column, keeping the board and controls together. */
+.petal-game { display: grid; grid-template-columns: minmax(0, min(280px, calc(100cqh - 17rem))) minmax(0, 1fr); align-items: start; gap: .35rem .75rem; max-width: 100%; }
+.petal-song-picker { grid-column: 1 / -1; width: 100%; margin-bottom: 0; }
+.petal-game .petal-board-wrap { grid-column: 1; grid-row: 2 / 7; width: 100%; max-width: 280px; margin: 0; }
+.petal-scorebar, .petal-judgement, .petal-game > .mini-controls, .petal-game > .mini-help, .petal-music-credits { grid-column: 2; margin: 0; }
+.petal-scorebar { flex-wrap: wrap; gap: .3rem .6rem; padding: 0; }
+.petal-scorebar > div { flex-wrap: wrap; gap: .1rem .4rem; }
+.petal-judgement { text-align: center; line-height: var(--leading-compact); }
+.petal-game > .mini-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
+.petal-game > .mini-controls > :last-child { grid-column: 1 / -1; }
+.petal-game > .mini-controls button { flex-wrap: wrap; gap: .25rem; padding-inline: .3rem; }
+.petal-game > .mini-help { line-height: var(--leading-compact); }
+.petal-music-credits { min-width: 0; line-height: var(--leading-compact); }
+.petal-music-credits[open] { grid-column: 1 / -1; }
+.petal-game .petal-overlay-flower { display: none; }
+.petal-game .arcade-overlay { padding: .5rem; gap: .3rem; }
+.petal-game .arcade-overlay p { line-height: var(--leading-compact); }
+.petal-mode-hint { text-align: center; line-height: var(--leading-compact); }
+
+@container journal (max-height: 560px) {
+  .sheet-rubric { margin-bottom: .65rem; }
+  .prompt-list { gap: .25rem; }
+  .prompt-option { padding-block: .45rem; }
+  .kind-note { padding: 1rem 1.25rem; }
+  .kind-note p { margin-top: .5rem; }
+  .mini-note-content p { font-size: var(--text-small); }
+  .mini-note-flower { width: 80px; }
+}
+@container journal (max-height: 500px) {
+  .petal-game .arcade-overlay p { display: none; }
+}
+
+@media (max-width: 780px) {
+  /* A phone shows one full paper page at a time, using the same next/back buttons. */
+  .journal-workspace { min-height: 38rem; }
+  .journal-main { width: min(100% - 1.25rem, 620px); padding: .5rem 0; }
+  .page-meta { margin: 0 .25rem .5rem; }
+  .page-meta .eyebrow { display: none; }
+  .page-title { font: var(--font-heading); }
+  .book-stage { display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: 44px minmax(0, 1fr); gap: .5rem; }
+  .page-arrow { width: 100%; min-height: 44px; }
+  .page-arrow-left { grid-column: 1; }
+  .page-arrow-right { grid-column: 3; }
+  .mobile-sheet-count { display: flex; align-items: center; grid-column: 2; grid-row: 1; padding-inline: .3rem; color: var(--ink-soft); font: var(--font-caption); }
+  .book-stage .page-turn-frame { grid-column: 1 / -1; grid-row: 2; min-height: 0; }
+  .page-turn-frame > .spread { grid-template-columns: 1fr; }
+  .page-turn-frame[data-mobile-sheet="0"] > .spread > .sheet:last-child,
+  .page-turn-frame[data-mobile-sheet="1"] > .spread > .sheet:first-child { display: none; }
+  .page-turn-frame > .spread > .sheet { padding: 1rem; border-left: 0; }
+  .sheet-content { height: 100%; overflow-y: auto; padding: 0; }
+  .page-turn-frame .spread::after { display: none; }
+  .sheet::before { inset: .45rem; }
+  .sheet-rubric { margin-bottom: .75rem; }
+  .writing-area { flex: 1; height: auto; min-height: 6rem; max-height: none; }
+  .writing-foot { gap: .35rem; margin-top: .5rem; }
+  .mobile-prompt-picker { margin-bottom: .6rem; }
+  .contents-grid { grid-template-columns: 1fr; }
+  .contents-item strong { font: var(--font-lead); }
+  .contents-item { padding-block: .5rem; }
+  .kind-note { padding: 1rem 1.25rem; }
+  .session-bar { flex-direction: row; align-items: center; gap: .5rem; margin-top: .65rem; padding-top: .4rem; }
+  .session-bar p { max-width: 26ch; font: var(--font-caption); }
+  .session-bar .session-clear { flex: none; width: auto; min-height: 44px; padding-inline: .5rem; }
+  .mini-app-icon { width: clamp(48px, 11cqh, 78px); }
+  .mini-games-page .mini-topbar { min-height: 36px; }
+  .mini-game-stats { margin-block: .4rem; }
+  .mini-intro h3 { font: var(--font-lead); }
+  .minigames-spread[data-activity="garden"] .mini-activity-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
+  .minigames-spread[data-activity="garden"] .mini-controls button svg { display: none; }
+  .mini-flower-panel svg { height: 22cqh; }
+  .mini-breath-phases { margin-bottom: 0; }
+  .mini-water-board { height: min(32cqh, 260px); }
+  .mini-ripple-board { height: min(39cqh, 300px); }
+  .mini-jump-controls { display: grid; grid-template-columns: 44px 1fr 44px; }
+  .mini-jump-controls > button:first-child { grid-column: 1; grid-row: 1; min-width: 0; }
+  .mini-jump-controls > button:nth-child(2) { grid-column: 2; grid-row: 1; }
+  .mini-jump-controls > button:last-child { grid-column: 3; grid-row: 1; min-width: 0; }
+  .petal-game { grid-template-columns: minmax(178px, 1.5fr) minmax(0, 1fr); gap: .3rem .5rem; }
+  .petal-game .petal-board-wrap { grid-row: 2 / 4; }
+  .petal-scorebar { grid-column: 2; grid-row: 2; }
+  .petal-game > .mini-controls { grid-column: 2; grid-row: 3; }
+  .petal-judgement, .petal-game > .mini-help, .petal-music-credits { grid-column: 1 / -1; min-height: 0; }
+  .petal-judgement { grid-row: 4; }
+  .petal-game > .mini-help { grid-row: 5; }
+  .petal-music-credits { grid-row: 6; }
+  .petal-song-meta > span:first-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .petal-game .arcade-overlay p, .petal-game .petal-mode-hint { display: none; }
+  .petal-game .arcade-overlay h4 { font: var(--font-body); font-weight: var(--weight-semibold); }
+  .petal-game .arcade-overlay .primary-button { padding-inline: .5rem; }
+  .petal-game .petal-touch-keys { height: 3.5rem; }
+  .petal-game .arcade-overlay { bottom: 3.5rem; }
+  .petal-game > .mini-controls { grid-template-columns: 1fr; }
+  .petal-game > .mini-controls button svg { display: none; }
+  .petal-scorebar .petal-chances { flex-wrap: nowrap; gap: 0; }
+  .petal-scorebar .petal-chances svg { width: 16px; }
+  .petal-game > .mini-controls button { overflow-wrap: anywhere; }
+  .petal-scorebar .petal-combo { display: none; }
+  .petal-judgement { font: var(--font-caption); }
+  .petal-game .mini-help { margin: 0; }
+  .minigames-spread[data-activity="stack"] .mini-activity-body { grid-template-columns: minmax(0, 1fr) minmax(132px, 1fr); gap: .4rem .5rem; }
+  .patchwork-board-wrap { grid-row: 1 / 4; }
+  .patchwork-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .patchwork-sidebar { grid-template-columns: 44px 1fr; gap: .2rem .4rem; }
+  .minigames-spread[data-activity="stack"] .arcade-feedback, .minigames-spread[data-activity="stack"] .mini-help { grid-column: 1 / -1; min-height: 0; }
+  .minigames-spread[data-activity="stack"] .arcade-feedback { grid-row: 4; }
+  .minigames-spread[data-activity="stack"] .mini-controls { grid-row: 3; gap: .3rem; }
+  .minigames-spread[data-activity="stack"] .mini-controls button { flex: 1 1 0; min-width: 0; padding: .3rem; font: var(--font-caption); }
+  .minigames-spread[data-activity="stack"] .mini-controls svg, .patchwork-board-wrap .arcade-overlay p { display: none; }
+}
+
+@media (max-width: 360px) {
+  .petal-game .petal-board { aspect-ratio: 1.2; }
+  .petal-game .arcade-overlay { gap: .2rem; }
+  .petal-game .arcade-overlay h4 { line-height: var(--leading-compact); }
+  .petal-mode { padding: .1rem; }
+  .petal-mode button { padding-inline: .45rem; }
+  .writing-sheet .writing-area { min-height: 3rem; }
+  .writing-sheet .page-subtitle { font-size: var(--text-small); line-height: var(--leading-compact); }
+  .prompt-option { font-size: var(--text-small); line-height: var(--leading-compact); }
+}
+
+/* At high browser zoom or in short landscape windows, preserve readable controls.
+   The paper can scroll internally rather than cutting off content. */
+@media (max-height: 640px) and (min-width: 781px) {
+  .journal-workspace { min-height: 36rem; }
+  .page-meta .eyebrow { display: none; }
+  .page-title { font: var(--font-heading); }
+  .journal-main { padding-top: .4rem; }
+}

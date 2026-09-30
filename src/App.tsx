@@ -621,9 +621,7 @@ function WritingPage({
   const writingRef = useRef<HTMLTextAreaElement | null>(null);
   const choosePrompt = (next: string) => {
     onPromptChange(next);
-    if (window.matchMedia('(max-width: 780px)').matches) {
-      writingRef.current?.closest('.writing-sheet')?.scrollIntoView({ block: 'start', behavior: 'instant' });
-    }
+    writingRef.current?.closest('.sheet-content')?.scrollTo({ top: 0 });
   };
   return (
     <div className="spread" data-testid={`page-${mode}`}>
@@ -786,6 +784,14 @@ function BurnModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: (
 function Journal({ onHome }: { onHome: () => void }) {
   const bookFrameRef = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState<Section>('contents');
+  const [singlePage, setSinglePage] = useState(() => window.matchMedia('(max-width: 780px)').matches);
+  const [mobileSheet, setMobileSheet] = useState(0);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 780px)');
+    const update = () => setSinglePage(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const queuedPage = useRef<Section | null>(null);
   const { prepareTurn, isTurning, busy, finishTurn } = useBookTurn(bookFrameRef, active);
   const [infoPage, setInfoPage] = useState<InfoPage | null>(null);
@@ -809,6 +815,7 @@ function Journal({ onHome }: { onHome: () => void }) {
       return;
     }
     window.scrollTo({ top: 0, behavior: window.matchMedia('(max-width: 780px), (prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    setMobileSheet(0);
     if (section === active) {
       bookFrameRef.current?.querySelectorAll('.sheet-content').forEach((page) => page.scrollTo({ top: 0 }));
       return;
@@ -859,9 +866,20 @@ function Journal({ onHome }: { onHome: () => void }) {
       setToast('A fresh page, whenever you’re ready.');
     }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : BURN_DURATION_MS);
   };
+  const turnPage = (direction: PageDirection) => {
+    if (singlePage && ((direction === 'next' && mobileSheet === 0) || (direction === 'previous' && mobileSheet === 1))) {
+      setMobileSheet(direction === 'next' ? 1 : 0);
+      return;
+    }
+    const index = activeIndex + (direction === 'next' ? 1 : -1);
+    if (index < 0 || index >= sections.length) return;
+    navigateTo(sections[index].id, direction);
+    if (singlePage && direction === 'previous') setMobileSheet(1);
+  };
 
   return (
     <main className="journal-shell">
+      <div className="journal-workspace">
       <Header active={active} onChange={navigateTo} onHome={() => { queuedPage.current = null; finishTurn(); setSessionNoticeOpen(true); onHome(); }} onSupport={() => setShowSupport(true)} />
       <div className="journal-main">
         <div className="page-meta">
@@ -874,15 +892,16 @@ function Journal({ onHome }: { onHome: () => void }) {
         <div className="book-stage">
           <button
             className="page-arrow page-arrow-left"
-            onClick={() => activeIndex > 0 && navigateTo(sections[activeIndex - 1].id, 'previous')}
-            disabled={activeIndex <= 0}
+            onClick={() => turnPage('previous')}
+            disabled={activeIndex <= 0 && (!singlePage || mobileSheet === 0)}
             aria-label="Turn to previous page"
             data-testid="button-previous-page"
           >
             <ArrowLeft size={19} strokeWidth={1.4} />
             <span className="page-arrow-label">Previous</span>
           </button>
-          <div ref={bookFrameRef} className="page-turn-frame">
+          <span className="mobile-sheet-count" aria-live="polite">Page {mobileSheet + 1} of 2</span>
+          <div ref={bookFrameRef} className="page-turn-frame" data-mobile-sheet={mobileSheet}>
           {active === 'contents' && <ContentsPage onChange={navigateTo} />}
           {active === 'checkin' && (
             <CheckInPage
@@ -892,14 +911,14 @@ function Journal({ onHome }: { onHome: () => void }) {
               onToggleNeed={(need) => setSelectedNeeds((current) => current.includes(need) ? current.filter((item) => item !== need) : [...current, need])}
             />
           )}
-          {(active === 'letout' || active === 'guided') && <WritingPage key={active} mode={active} content={content} prompt={prompt} onContentChange={setContent} onPromptChange={setPrompt} onBurn={() => setShowBurn(true)} burning={burningPage === active} />}
+          {(active === 'letout' || active === 'guided') && <WritingPage key={active} mode={active} content={content} prompt={prompt} onContentChange={setContent} onPromptChange={(nextPrompt) => { setPrompt(nextPrompt); setMobileSheet(0); }} onBurn={() => setShowBurn(true)} burning={burningPage === active} />}
           {active === 'minigames' && <MindfulnessMinigames state={mindfulness} setState={setMindfulness} onSupport={() => setShowSupport(true)} />}
           {active === 'kind' && <KindPage />}
           </div>
           <button
             className="page-arrow page-arrow-right"
-            onClick={() => activeIndex < sections.length - 1 && navigateTo(sections[activeIndex + 1].id, 'next')}
-            disabled={activeIndex >= sections.length - 1}
+            onClick={() => turnPage('next')}
+            disabled={activeIndex >= sections.length - 1 && (!singlePage || mobileSheet === 1)}
             aria-label="Turn to next page"
             data-testid="button-next-page"
           >
@@ -908,9 +927,10 @@ function Journal({ onHome }: { onHome: () => void }) {
           </button>
         </div>
         <div className="session-bar">
-          <p><LockKeyhole size={12} /> Your entries and activity marks live in active memory only. They are never saved, sent, or shared.</p>
+          <p><LockKeyhole size={12} /> Private to this visit.</p>
           <button className="quiet-button session-clear" onClick={clearSession} data-testid="button-clear-session"><RotateCcw size={13} /> Clear session</button>
         </div>
+      </div>
       </div>
       <SiteFooter onOpen={setInfoPage} />
       {sessionNoticeOpen && (

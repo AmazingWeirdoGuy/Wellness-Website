@@ -538,7 +538,7 @@ function CloversAscent({ state, setState }: Pick<Props, 'state' | 'setState'>) {
   const start = () => {
     reset();
     setPhase('playing');
-    board.current?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+    board.current?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
     board.current?.focus({ preventScroll: true });
   };
   useEffect(() => {
@@ -682,17 +682,14 @@ export function MindfulnessMinigames({ state, setState, onSupport }: Props) {
   const keepStackBest = useCallback((best: number) => setState((previous) => best > previous.stack.best ? { ...previous, stack: { best } } : previous), [setState]);
   const current = state.current;
   const gamesPageRef = useRef<HTMLDivElement | null>(null);
-  const previousActivity = useRef(current);
   useEffect(() => {
     gamesPageRef.current?.scrollTo({ top: 0 });
-    if (current !== previousActivity.current && window.matchMedia('(max-width: 780px)').matches) {
-      gamesPageRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
-    }
-    previousActivity.current = current;
+    // Opening an activity should keep the whole journal, including its header, in view.
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, [current]);
   const open = (activity: ActivityId | null) => setState((previous) => ({ ...previous, current: activity }));
   const currentName = activities.find((activity) => activity.id === current)?.name;
-  return <div className={`spread minigames-spread${current ? '' : ' mini-selection-spread'}${current === 'keys' ? ' petal-keys-spread' : ''}`} data-testid="page-minigames">
+  return <div className={`spread minigames-spread${current ? '' : ' mini-selection-spread'}${current === 'keys' ? ' petal-keys-spread' : ''}`} data-activity={current || undefined} data-testid="page-minigames">
     <section className="sheet minigames-sheet mini-games-page"><div ref={gamesPageRef} className="sheet-content" tabIndex={0} role="region" aria-label="Mindfulness games">
       <div className="sheet-rubric eyebrow"><span>A little room to pause</span><span className="page-no">07 / 08</span></div>
       <div className="mini-topbar">{current ? <button className="mini-back" onClick={() => open(null)}><ArrowLeft size={16} /> Back to games</button> : <span className="mini-topbar-spacer" />}<button className="mini-support" onClick={onSupport}><ShieldCheck size={15} /> Support</button></div>
