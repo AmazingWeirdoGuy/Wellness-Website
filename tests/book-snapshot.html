@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Book snapshot regression checks</title>
+  <link rel="stylesheet" href="/typography.css">
+  <link rel="stylesheet" href="/src/index.css">
+  <link rel="stylesheet" href="/src/journal-layout.css">
+  <style>
+    body { padding: 24px; }
+    #result { white-space: pre-wrap; }
+    /* Deliberately depend on the live spread: animation copies lose this ancestry. */
+    .spread[data-fixture] .fixture-title { margin: 7.25px 0 11.5px; font-size: 23.375px; }
+    .spread[data-fixture] .fixture-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9.375px; }
+    .spread[data-fixture] .fixture-title::after { content: ' ·'; color: rgb(145, 92, 71); }
+    .fixture-scroll { height: 1000px; }
+    .font-probe { display: block; width: 240px; height: 32px; margin: 0; padding: 0; color: #493430; font: 400 18px/32px Lora, serif; white-space: nowrap; }
+    .font-probe-semibold { font-weight: 600; }
+    .font-probe-italic { font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Book snapshot regression checks</h1>
+  <p>Run locally through Vite at /tests/book-snapshot.html.</p>
+  <pre id="result">Running…</pre>
+  <div class="page-turn-frame" style="width:858.25px;height:408.46875px">
+    <div class="spread" data-fixture>
+      <section class="sheet writing-sheet">
+        <div class="sheet-content">
+          <span class="font-probe">Soft page 01 / 08</span>
+          <span class="font-probe font-probe-semibold">Soft page 01 / 08</span>
+          <span class="font-probe font-probe-italic">Soft page 01 / 08</span>
+          <h2 class="fixture-title">An exact copy, including fractional lettering</h2>
+          <div class="fixture-grid"><button>One choice</button><button>Another choice</button></div>
+          <textarea class="writing-area" aria-label="Test entry">A test entry, never saved.</textarea>
+          <input type="checkbox" checked aria-label="Test checkbox">
+        </div>
+      </section>
+      <section class="sheet">
+        <div class="sheet-content">
+          <h2 class="fixture-title">A scroll position to preserve</h2>
+          <div class="fixture-scroll"><p>Words at the top.</p><p>Words further down.</p></div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <script type="module" src="./book-snapshot.browser.ts"></script>
+</body>
+</html>

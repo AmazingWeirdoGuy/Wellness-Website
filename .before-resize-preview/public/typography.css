@@ -1,0 +1,75 @@
+/* Shared by the app and the static About / Contact pages.
+   Use these roles and sizes rather than adding one-off font values. */
+@font-face {
+  font-family: 'Lora';
+  src: url('/fonts/lora-italic.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lora';
+  src: url('/fonts/lora-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lora';
+  src: url('/fonts/lora-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  --font-ui: 'Lora', Georgia, serif;
+  --weight-regular: 400;
+  --weight-semibold: 600;
+
+  /* The complete size scale: 13, 14, 16, 20, 24, 32, 48, 72. The cover display is an intentional 80px exception. */
+  --text-caption: .8125rem;
+  --text-small: .875rem;
+  --text-body: 1rem;
+  --text-lead: 1.25rem;
+  --text-heading: 1.5rem;
+  --text-title: 2rem;
+  --text-display: 3rem;
+  --text-cover: 5rem;
+
+  --leading-heading: 1.25;
+  --leading-compact: 1.4;
+  --leading-body: 1.7;
+  --leading-writing: 2rem;
+  --tracking-heading: -.02em;
+  --tracking-label: .01em;
+
+  --type-page: var(--text-display);
+  --type-cover: var(--text-cover);
+  --font-caption: var(--weight-regular) var(--text-caption)/var(--leading-compact) var(--font-ui);
+  --font-label: var(--weight-semibold) var(--text-caption)/var(--leading-compact) var(--font-ui);
+  --font-control: var(--weight-semibold) var(--text-small)/var(--leading-compact) var(--font-ui);
+  --font-body: var(--weight-regular) var(--text-body)/var(--leading-body) var(--font-ui);
+  --font-lead: var(--weight-regular) var(--text-lead)/var(--leading-body) var(--font-ui);
+  --font-quote: italic var(--weight-regular) var(--text-lead)/var(--leading-body) var(--font-ui);
+  --font-heading: var(--weight-regular) var(--text-heading)/var(--leading-heading) var(--font-ui);
+  --font-title: var(--weight-regular) var(--text-title)/var(--leading-heading) var(--font-ui);
+  --font-page: var(--weight-regular) var(--type-page)/var(--leading-heading) var(--font-ui);
+  --font-cover: var(--weight-regular) var(--type-cover)/1.05 var(--font-ui);
+  --font-brand: var(--weight-regular) var(--text-lead)/var(--leading-heading) var(--font-ui);
+  --font-writing: var(--weight-regular) var(--text-body)/var(--leading-writing) var(--font-ui);
+}
+
+html { font-family: var(--font-ui); font-synthesis: none; }
+body { font: var(--font-body); }
+button, input, textarea, select { font-family: inherit; }
+h1, h2, h3, h4, h5, h6, strong, b { font-weight: var(--weight-semibold); }
+em, i { font-style: normal; }
+small { font-size: var(--text-caption); }
+pre, code, kbd, samp { font-family: var(--font-ui); }
+
+@media (max-width: 780px) {
+  :root { --type-page: var(--text-title); --type-cover: 3.5rem; }
+}

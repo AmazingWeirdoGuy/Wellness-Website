@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BookOpen,
   Check,
+  ChevronDown,
   Feather,
   Flame,
   Heart,
@@ -505,9 +506,9 @@ function Header({
           </button>
         </div>
         <button ref={menuButtonRef} className="quiet-button mobile-pages-toggle" aria-expanded={menuOpen} aria-controls="mobile-journal-pages" onClick={() => setMenuOpen((open) => !open)} data-testid="button-mobile-pages">
-          {menuOpen ? <X size={17} /> : <Menu size={17} />} Pages
+          <span className="mobile-pages-toggle-icon" aria-hidden="true">{menuOpen ? <X size={17} /> : <Menu size={17} />}</span><span>Pages</span><ChevronDown className="mobile-pages-chevron" size={14} strokeWidth={1.6} aria-hidden="true" />
         </button>
-        <nav id="mobile-journal-pages" className="mobile-pages-menu" aria-label="Pages and site links" hidden={!menuOpen}>
+        <nav id="mobile-journal-pages" className="mobile-pages-menu" aria-label="Pages and site links" aria-hidden={!menuOpen} data-open={menuOpen} inert={!menuOpen}>
           <div className="eyebrow">Your journal</div>
           {sections.map(({ id, label, short, icon: Icon }) => <button key={id} aria-current={active === id ? 'page' : undefined} onClick={() => { setMenuOpen(false); menuButtonRef.current?.focus({ preventScroll: true }); onChange(id); }} data-testid={`button-mobile-nav-${id}`}>
             <Icon size={17} strokeWidth={1.5} /><span>{label}</span><span className="mobile-page-number">{short}</span>
@@ -793,7 +794,7 @@ function Journal({ onHome }: { onHome: () => void }) {
     return () => query.removeEventListener('change', update);
   }, []);
   const queuedPage = useRef<Section | null>(null);
-  const { prepareTurn, isTurning, busy, finishTurn } = useBookTurn(bookFrameRef, active);
+  const { prepareTurn, isTurning, busy, finishTurn } = useBookTurn(bookFrameRef, `${active}:${mobileSheet}`);
   const [infoPage, setInfoPage] = useState<InfoPage | null>(null);
   const [showSupport, setShowSupport] = useState(false);
   const [sessionNoticeOpen, setSessionNoticeOpen] = useState(true);
@@ -814,7 +815,9 @@ function Journal({ onHome }: { onHome: () => void }) {
       queuedPage.current = section;
       return;
     }
-    window.scrollTo({ top: 0, behavior: window.matchMedia('(max-width: 780px), (prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    // Keep the frame still while snapshots are captured; a smooth document scroll
+    // here makes the fold drift under the pointer on taller pages.
+    window.scrollTo({ top: 0, behavior: 'instant' });
     setMobileSheet(0);
     if (section === active) {
       bookFrameRef.current?.querySelectorAll('.sheet-content').forEach((page) => page.scrollTo({ top: 0 }));

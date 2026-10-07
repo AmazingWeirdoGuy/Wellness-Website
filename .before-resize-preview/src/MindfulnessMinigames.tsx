@@ -1,0 +1,723 @@
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
+import { ArrowLeft, Check, Pause, Play, RotateCcw, ShieldCheck, Square, Trash2, Undo2, Volume2, VolumeX } from 'lucide-react';
+import { CLOVER_BOARD_WIDTH, stepCloverSteering, wrapCloverX, type CloverDirection } from './cloverMovement';
+import { PetalKeys } from './PetalKeys';
+import { PatchworkStack } from './PatchworkStack';
+import './mindfulness.css';
+
+type ActivityId = 'breath' | 'keys' | 'stack' | 'garden' | 'ripples' | 'rocks' | 'water' | 'orchard' | 'clover';
+type Point = { x: number; y: number };
+type Stroke = { id: number; points: Point[]; color: string; size: number; at: number };
+type GardenKind = 'poppy' | 'daisy' | 'leaf' | 'sprig' | 'scrap';
+type GardenItem = { id: number; kind: GardenKind; x: number; y: number; rotation: number; scale: number };
+type Ripple = { id: number; x: number; y: number; at: number };
+
+export type MindfulnessState = {
+  current: ActivityId | null;
+  breath: { running: boolean; elapsed: number; pace: 'slow' | 'gentle' | 'steady'; mode: 'gentle' | 'box' };
+  keys: { best: number };
+  stack: { best: number };
+  garden: { items: GardenItem[]; history: GardenItem[][]; selected: number | null; tool: GardenKind; done: boolean };
+  ripples: { waves: Ripple[]; clock: number; watching: boolean; paused: boolean };
+  rocks: { progress: number; running: boolean; settling: boolean; sound: boolean };
+  water: { strokes: Stroke[]; clock: number; size: number; drying: 'normal' | 'slow' | 'paused' };
+  orchard: { best: number };
+  clover: { best: number };
+};
+
+export const createMindfulnessState = (): MindfulnessState => ({
+  current: null,
+  breath: { running: false, elapsed: 0, pace: 'gentle', mode: 'gentle' },
+  keys: { best: 0 },
+  stack: { best: 0 },
+  garden: { items: [], history: [], selected: null, tool: 'poppy', done: false },
+  ripples: { waves: [], clock: 0, watching: false, paused: false },
+  rocks: { progress: 0, running: false, settling: false, sound: false },
+  water: { strokes: [], clock: 0, size: 9, drying: typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'paused' : 'normal' },
+  orchard: { best: 0 },
+  clover: { best: 0 },
+});
+
+type Props = {
+  state: MindfulnessState;
+  setState: Dispatch<SetStateAction<MindfulnessState>>;
+  onSupport: () => void;
+};
+
+const activities: Array<{ id: ActivityId; name: string; hint: string }> = [
+  { id: 'breath', name: 'Take a Breath', hint: 'A flower, at your pace' },
+  { id: 'keys', name: 'Petal Keys', hint: 'A melody at your fingertips' },
+  { id: 'stack', name: 'Patchwork Stack', hint: 'Make room, piece by piece' },
+  { id: 'garden', name: 'Pressed-Flower Garden', hint: 'Arrange what you find' },
+  { id: 'ripples', name: 'Ink Ripples', hint: 'Watch small circles widen' },
+  { id: 'rocks', name: 'Skipping Rocks', hint: 'A quiet throw across water' },
+  { id: 'water', name: 'Water Calligraphy', hint: 'Marks that gently dry' },
+  { id: 'orchard', name: 'Orchard Sweep', hint: 'Swipe through falling fruit' },
+  { id: 'clover', name: 'Clover’s Ascent', hint: 'Bounce upward, one page at a time' },
+];
+
+const newId = () => crypto.getRandomValues(new Uint32Array(1))[0];
+const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+const pointFromEvent = (event: ReactPointerEvent<SVGSVGElement>, width = 600, height = 400): Point => {
+  const bounds = event.currentTarget.getBoundingClientRect();
+  return {
+    x: clamp((event.clientX - bounds.left) / bounds.width * width, 0, width),
+    y: clamp((event.clientY - bounds.top) / bounds.height * height, 0, height),
+  };
+};
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => setReduced(preference.matches);
+    preference.addEventListener('change', onChange);
+    return () => preference.removeEventListener('change', onChange);
+  }, []);
+  return reduced;
+}
+
+function MiniIllustration({ id }: { id: ActivityId }) {
+  return (
+    <svg viewBox="0 0 100 100" role="img" aria-label="" focusable="false">
+      <defs>
+        <filter id={`paper-wash-${id}`} x="-20%" y="-20%" width="140%" height="140%">
+          <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="2" seed="4" result="grain" />
+          <feDisplacementMap in="SourceGraphic" in2="grain" scale="2.2" />
+        </filter>
+      </defs>
+      <rect width="100" height="100" rx="20" fill="#e8ddc8" />
+      <path d="M0 70 Q28 57 55 73 T100 67 V100 H0Z" fill="#d8c9ae" opacity=".55" />
+      <g filter={`url(#paper-wash-${id})`} stroke="#66574b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        {id === 'breath' && <><path d="M49 51 Q47 70 51 85" fill="none" /><path d="M50 73 Q34 63 28 70 Q37 80 50 76M50 70 Q63 58 72 65 Q66 76 51 75" fill="#9fad88" opacity=".8" /><g fill="#d8a089" opacity=".82"><ellipse cx="50" cy="33" rx="11" ry="20" /><ellipse cx="50" cy="55" rx="11" ry="20" /><ellipse cx="39" cy="44" rx="20" ry="11" /><ellipse cx="61" cy="44" rx="20" ry="11" /></g><circle cx="50" cy="44" r="11" fill="#e9c98d" /></>}
+        {id === 'keys' && <><rect x="17" y="21" width="66" height="58" rx="4" fill="#f8efdc"/><path d="M34 22V78M50 22V78M66 22V78" fill="none" stroke="#aa967c"/>{[0, 1, 2, 3].map((lane) => <rect key={lane} x={20 + lane * 16} y={[42, 27, 51, 35][lane]} width="10" height="17" rx="2" fill={['#8b9c7c', '#be7b68', '#9d7893', '#c7a160'][lane]}/>)}<path d="M19 68H81" stroke="#a58466" strokeDasharray="3 3"/><path d="M43 14Q50 6 57 14" fill="none" stroke="#788a68"/></>}
+        {id === 'stack' && <><path d="M15 18H85V83H15Z" fill="#f5ecd9" stroke="#b5a085"/>{[{x:21,y:63,c:'#8b9c7c'},{x:35,y:63,c:'#8b9c7c'},{x:49,y:63,c:'#be7b68'},{x:63,y:63,c:'#be7b68'},{x:49,y:49,c:'#be7b68'},{x:63,y:49,c:'#be7b68'},{x:21,y:49,c:'#8b9c7c'},{x:35,y:27,c:'#9d7893'},{x:49,y:27,c:'#9d7893'},{x:63,y:27,c:'#9d7893'},{x:49,y:13,c:'#9d7893'}].map((block, i) => <g key={i}><rect x={block.x} y={block.y} width="13" height="13" rx="2" fill={block.c}/><path d={`M${block.x+3} ${block.y+4}h7`} stroke="#f9efda" strokeDasharray="2 2"/></g>)}</>}
+        {id === 'garden' && <><path d="M18 25 L82 20 L85 76 L20 79Z" fill="#f2e8d5" /><path d="M45 69 Q42 49 49 36" fill="none" stroke="#73856c" /><path d="M46 56 Q34 44 30 54 Q39 62 46 60M49 51 Q60 41 65 48 Q58 56 49 54" fill="#a3ae8b" /><g fill="#bf786f"><ellipse cx="49" cy="32" rx="7" ry="14" /><ellipse cx="49" cy="32" rx="14" ry="7" /></g><circle cx="49" cy="32" r="5" fill="#dfc38e" /><path d="M23 19 L44 18 L46 29 L24 30Z" fill="#f6e9d1" opacity=".55" /></>}
+        {id === 'ripples' && <><path d="M50 19 C61 37 64 44 50 55 C36 45 39 37 50 19Z" fill="#6d8592" /><ellipse cx="50" cy="69" rx="31" ry="10" fill="none" stroke="#718b94" opacity=".7" /><ellipse cx="50" cy="69" rx="20" ry="6" fill="none" stroke="#718b94" opacity=".75" /><ellipse cx="50" cy="69" rx="9" ry="3" fill="none" stroke="#718b94" /></>}
+        {id === 'rocks' && <><path d="M0 62 Q35 55 100 64 V100 H0Z" fill="#a9c1bd" opacity=".8" /><path d="M18 73 Q50 68 85 76 M24 84 Q54 81 79 86" fill="none" stroke="#f2eee1" opacity=".8" /><path d="M38 43 Q54 34 68 43 L70 50 Q54 57 36 49Z" fill="#8e8171" /><path d="M43 44 Q57 40 64 44" fill="none" stroke="#b9aa92" /></>}
+        {id === 'water' && <><path d="M25 70 Q40 50 53 62 T79 42" fill="none" stroke="#657d82" strokeWidth="8" opacity=".55" /><path d="M65 27 L84 47 L91 39 L71 21Z" fill="#af845e" /><path d="M65 27 L58 21 Q59 36 70 35Z" fill="#5b5550" /><path d="M28 77 Q46 68 55 73" fill="none" stroke="#91a4a2" opacity=".5" /></>}
+        {id === 'orchard' && <><path d="M50 18Q46 10 51 6" fill="none" stroke="#667b5f" strokeWidth="3" /><path d="M51 9Q60 4 64 9Q60 16 52 13" fill="#8d9d79" /><circle cx="50" cy="53" r="24" fill="#c96f5d" /><path d="M50 31Q46 50 50 75" fill="none" stroke="#e8b28f" strokeWidth="2" opacity=".8" /><circle cx="41" cy="45" r="3" fill="#f0d6b2" opacity=".9" /><path d="M22 79Q48 70 76 79" fill="none" stroke="#788a70" strokeWidth="2" /></>}
+        {id === 'clover' && <><path d="M16 81H84" stroke="#b9a98d" /><path d="M30 66H53M53 48H77M23 30H45" stroke="#b78f70" strokeWidth="4" strokeLinecap="round" /><g fill="#87956d" stroke="#617355"><circle cx="48" cy="54" r="8"/><circle cx="42" cy="48" r="5"/><circle cx="54" cy="47" r="5"/><circle cx="48" cy="59" r="5"/></g><path d="M45 59L42 68M51 59L54 68" stroke="#617355" strokeWidth="2" /></>}
+      </g>
+    </svg>
+  );
+}
+
+function Launcher({ onOpen }: { onOpen: (activity: ActivityId) => void }) {
+  return (
+    <div className="mini-launcher mini-paper-in">
+      <div className="mini-intro"><h3>Mindfulness Minigames.</h3><p>A little space to pause.</p></div>
+      <div className="mini-app-grid">
+        {activities.map((activity) => <button className="mini-app" key={activity.id} onClick={() => onOpen(activity.id)} data-testid={`mini-open-${activity.id}`}>
+          <span className="mini-app-icon"><MiniIllustration id={activity.id} /></span>
+          <strong>{activity.name}</strong><small>{activity.hint}</small>
+        </button>)}
+      </div>
+    </div>
+  );
+}
+
+function BreathActivity({ state, setState }: Pick<Props, 'state' | 'setState'>) {
+  const breath = state.breath;
+  const reducedMotion = useReducedMotion();
+  useEffect(() => {
+    if (!breath.running) return;
+    const timer = window.setInterval(() => setState((current) => ({ ...current, breath: { ...current.breath, elapsed: current.breath.elapsed + .05 } })), 50);
+    return () => window.clearInterval(timer);
+  }, [breath.running, setState]);
+  const inhale = breath.pace === 'slow' ? 5 : breath.pace === 'steady' ? 3 : 4;
+  const exhale = breath.pace === 'slow' ? 7 : breath.pace === 'steady' ? 4 : 6;
+  const hold = breath.pace === 'slow' ? 5 : breath.pace === 'steady' ? 3 : 4;
+  const phases = breath.mode === 'box' ? [
+    { label: 'Inhale', duration: hold }, { label: 'Hold', duration: hold },
+    { label: 'Exhale', duration: hold }, { label: 'Hold', duration: hold },
+  ] : [{ label: 'Inhale', duration: inhale }, { label: 'Exhale', duration: exhale }];
+  const cycle = phases.reduce((sum, phase) => sum + phase.duration, 0);
+  let within = breath.elapsed % cycle;
+  let phaseIndex = 0;
+  while (phaseIndex < phases.length - 1 && within >= phases[phaseIndex].duration) within -= phases[phaseIndex++].duration;
+  const currentPhase = phases[phaseIndex];
+  const openness = reducedMotion || (!breath.running && breath.elapsed === 0) ? .45 : phaseIndex === 0 ? within / currentPhase.duration : breath.mode === 'box' && phaseIndex === 1 ? 1 : breath.mode === 'box' && phaseIndex === 3 ? 0 : 1 - within / currentPhase.duration;
+  const setBreath = (patch: Partial<MindfulnessState['breath']>) => setState((current) => ({ ...current, breath: { ...current.breath, ...patch } }));
+  return <div className="mini-activity-body mini-breath">
+    <div className="mini-art-panel mini-flower-panel">
+      <svg viewBox="0 0 600 350" role="img" aria-label={`Flower ${currentPhase.label.toLowerCase()} phase`}>
+        <defs><radialGradient id="breath-petal"><stop stopColor="#e9c7a6" /><stop offset="1" stopColor="#bf827c" /></radialGradient></defs>
+        <path d="M300 200 Q289 265 302 322" fill="none" stroke="#78866b" strokeWidth="5" strokeLinecap="round" />
+        <path d="M297 274 Q260 246 243 265 Q268 293 298 284 M303 280 Q337 246 355 263 Q333 293 303 288" fill="#a7b28d" stroke="#7b896e" strokeWidth="2" />
+        <g transform="translate(300 170)">
+          {Array.from({ length: 8 }, (_, index) => <ellipse key={index} cx="0" cy={-35 - openness * 23} rx={12 + openness * 11} ry={30 + openness * 16} transform={`rotate(${index * 45})`} fill="url(#breath-petal)" stroke="#ad7770" strokeWidth="1.5" opacity=".82" />)}
+          <circle r="28" fill="#e8c98e" stroke="#9b8060" strokeWidth="2" />
+          <circle r="17" fill="#f4dda9" opacity=".65" />
+        </g>
+      </svg>
+      <div className="mini-breath-cue" aria-live="polite"><strong>{breath.running ? currentPhase.label : breath.elapsed > 0 ? 'Paused' : 'Ready when you are'}</strong><span>{breath.mode === 'box' ? 'Optional box breathing' : 'No breath holds'}</span></div>
+      <div className="mini-breath-phases" aria-label="Breathing phases">{phases.map((phase, index) => <span key={`${phase.label}-${index}`} className={breath.running && index === phaseIndex ? 'active' : ''}>{phase.label}</span>)}</div>
+    </div>
+    <div className="mini-controls"><label>Pace <select value={breath.pace} onChange={(event) => setBreath({ pace: event.target.value as MindfulnessState['breath']['pace'] })}><option value="slow">Slow</option><option value="gentle">Gentle</option><option value="steady">Steady</option></select></label><label>Pattern <select value={breath.mode} onChange={(event) => setBreath({ mode: event.target.value as MindfulnessState['breath']['mode'], elapsed: 0 })}><option value="gentle">Inhale · exhale</option><option value="box">Box breathing with holds</option></select></label></div>
+    <div className="mini-controls mini-controls-center"><button className="primary-button" onClick={() => setBreath({ running: !breath.running })}>{breath.running ? <Pause size={15} /> : <Play size={15} />}{breath.running ? 'Pause' : 'Start'}</button><button className="quiet-button" onClick={() => setBreath({ running: false, elapsed: 0 })}><Square size={13} /> Stop</button></div>
+    <p className="mini-help">Follow the flower if it feels comfortable. Change the pace or leave at any time.</p>
+  </div>;
+}
+
+
+function GardenMotif({ kind }: { kind: GardenKind }) {
+  if (kind === 'scrap') return <><path d="M-29-21L24-25L29 22L-23 27Z" fill="#d4bd9f" stroke="#9c846d" strokeWidth="1.5" /><path d="M-17-4H15M-13 5H19M-18 14H10" stroke="#a28d77" opacity=".5" /></>;
+  if (kind === 'leaf') return <><path d="M-25 23Q-23-20 18-29Q29 5-25 23Z" fill="#a3ad8c" stroke="#72826e" strokeWidth="1.5" /><path d="M-25 23Q-2-5 18-29M-12 9L-14-7M-1-3L10 2" fill="none" stroke="#71816d" /></>;
+  if (kind === 'sprig') return <><path d="M-2 29Q4-7-2-29" fill="none" stroke="#687d6b" strokeWidth="2" />{[-18, -7, 5, 17].map((y, index) => <g key={y}><ellipse cx={index % 2 ? -11 : 11} cy={y} rx="12" ry="5" transform={`rotate(${index % 2 ? 26 : -26} ${index % 2 ? -11 : 11} ${y})`} fill="#a6b797" stroke="#768b75" /><circle cx={index % 2 ? 7 : -7} cy={y - 6} r="3" fill="#bd8880" /></g>)}</>;
+  return <><path d="M0 28Q-3 5 0-6" fill="none" stroke="#698169" strokeWidth="2" /><path d="M0 18Q-13 7-20 12Q-9 22 0 21M0 13Q13 3 20 9Q10 19 0 17" fill="#aab897" stroke="#768b74" /><g fill={kind === 'poppy' ? '#bd7a72' : '#e6cfaa'} stroke={kind === 'poppy' ? '#986a66' : '#b6a083'}>{Array.from({ length: kind === 'poppy' ? 5 : 7 }, (_, index) => <ellipse key={index} cx="0" cy="-15" rx={kind === 'poppy' ? 10 : 7} ry="17" transform={`rotate(${index * (360 / (kind === 'poppy' ? 5 : 7))})`} opacity=".84" />)}</g><circle r="7" fill={kind === 'poppy' ? '#d9b587' : '#c29b75'} stroke="#9f8069" /></>;
+}
+
+function GardenActivity({ state, setState }: Pick<Props, 'state' | 'setState'>) {
+  const garden = state.garden;
+  const board = useRef<SVGSVGElement>(null);
+  const drag = useRef<{ id: number; before: GardenItem[]; moved: boolean } | null>(null);
+  const skipClick = useRef(false);
+  const updateGarden = (change: (value: MindfulnessState['garden']) => MindfulnessState['garden']) => setState((current) => ({ ...current, garden: change(current.garden) }));
+  const place = (point: Point) => updateGarden((current) => ({ ...current, items: [...current.items, { id: newId(), kind: current.tool, x: point.x, y: point.y, rotation: (Math.random() - .5) * 18, scale: 1 }], history: [...current.history, current.items], selected: null, done: false }));
+  const adjust = (change: (item: GardenItem) => GardenItem) => updateGarden((current) => ({ ...current, items: current.items.map((item) => item.id === current.selected ? change(item) : item), history: [...current.history, current.items], done: false }));
+  return <div className="mini-activity-body">
+    <div className="mini-controls mini-garden-palette"><span>Pick a clipping</span>{(['poppy', 'daisy', 'leaf', 'sprig', 'scrap'] as GardenKind[]).map((kind) => <button key={kind} className={`mini-palette-button ${garden.tool === kind ? 'selected' : ''}`} aria-pressed={garden.tool === kind} onClick={() => updateGarden((current) => ({ ...current, tool: kind, selected: null }))}>{kind === 'poppy' ? 'Poppy' : kind === 'daisy' ? 'Daisy' : kind === 'scrap' ? 'Paper scrap' : kind === 'sprig' ? 'Sprig' : 'Leaf'}</button>)}</div>
+    <svg ref={board} className="mini-garden-board" viewBox="0 0 600 400" preserveAspectRatio="none" tabIndex={0} role="img" aria-label="Garden page. Choose a clipping and tap or press Enter to place it." onClick={(event) => { if (skipClick.current) { skipClick.current = false; return; } const bounds = event.currentTarget.getBoundingClientRect(); place({ x: clamp((event.clientX - bounds.left) / bounds.width * 600, 25, 575), y: clamp((event.clientY - bounds.top) / bounds.height * 400, 25, 375) }); }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); place({ x: 300, y: 200 }); } }} onPointerMove={(event) => { if (!drag.current) return; drag.current.moved = true; const point = pointFromEvent(event); const id = drag.current.id; updateGarden((current) => ({ ...current, items: current.items.map((item) => item.id === id ? { ...item, x: clamp(point.x, 25, 575), y: clamp(point.y, 25, 375) } : item), done: false })); }} onPointerUp={() => { if (drag.current?.moved) { const before = drag.current.before; updateGarden((current) => ({ ...current, history: [...current.history, before] })); skipClick.current = true; } drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
+      <rect width="600" height="400" fill="#f2e9d9" />
+      <path d="M20 27H580V373H20Z" fill="none" stroke="#c7b7a1" strokeWidth="1.5" opacity=".6" />
+      <path d="M70 350Q170 338 260 352M354 54Q458 44 540 57" fill="none" stroke="#b9a98d" opacity=".25" />
+      {garden.items.map((item) => <g key={item.id} transform={`translate(${item.x} ${item.y}) rotate(${item.rotation}) scale(${item.scale})`} className={garden.selected === item.id ? 'garden-selected' : ''} onPointerDown={(event) => { event.stopPropagation(); skipClick.current = true; board.current?.setPointerCapture(event.pointerId); drag.current = { id: item.id, before: garden.items, moved: false }; updateGarden((current) => ({ ...current, selected: item.id })); }}><GardenMotif kind={item.kind} /></g>)}
+      {garden.done && <text x="300" y="382" textAnchor="middle" className="garden-done-note">A small garden to leave on this page.</text>}
+    </svg>
+    <div className="mini-controls"><span className="mini-control-caption">Tap the page to place · drag to move</span><button className="quiet-button" disabled={garden.selected === null} onClick={() => adjust((item) => ({ ...item, rotation: item.rotation - 15 }))}>Rotate left</button><button className="quiet-button" disabled={garden.selected === null} onClick={() => adjust((item) => ({ ...item, rotation: item.rotation + 15 }))}>Rotate right</button><button className="quiet-button" disabled={garden.selected === null} onClick={() => adjust((item) => ({ ...item, scale: clamp(item.scale - .15, .5, 1.8) }))}>Smaller</button><button className="quiet-button" disabled={garden.selected === null} onClick={() => adjust((item) => ({ ...item, scale: clamp(item.scale + .15, .5, 1.8) }))}>Larger</button></div>
+    {garden.items.length > 0 && <div className="mini-garden-list" aria-label="Placed clippings">{garden.items.map((item, index) => <button key={item.id} className={garden.selected === item.id ? 'selected' : ''} onClick={() => updateGarden((current) => ({ ...current, selected: item.id }))}>{item.kind[0].toUpperCase() + item.kind.slice(1)} {index + 1}</button>)}</div>}
+    <div className="mini-controls"><button className="quiet-button" disabled={!garden.history.length} onClick={() => updateGarden((current) => ({ ...current, items: current.history.at(-1) ?? [], history: current.history.slice(0, -1), selected: null, done: false }))}><Undo2 size={14} /> Undo</button><button className="quiet-button" disabled={garden.selected === null} onClick={() => updateGarden((current) => ({ ...current, items: current.items.filter((item) => item.id !== current.selected), history: [...current.history, current.items], selected: null, done: false }))}><Trash2 size={14} /> Remove selected</button><button className="quiet-button" disabled={!garden.items.length} onClick={() => updateGarden((current) => ({ ...current, items: [], history: [...current.history, current.items], selected: null, done: false }))}>Clear page</button><button className="primary-button" onClick={() => updateGarden((current) => ({ ...current, done: true }))}><Check size={15} /> Done for now</button></div>
+    <p className="mini-help">There is no right arrangement. You can come back and move anything in this session.</p>
+  </div>;
+}
+
+function RipplesActivity({ state, setState }: Pick<Props, 'state' | 'setState'>) {
+  const ripples = state.ripples;
+  const reducedMotion = useReducedMotion();
+  const setRipples = (patch: Partial<MindfulnessState['ripples']>) => setState((current) => ({ ...current, ripples: { ...current.ripples, ...patch } }));
+  useEffect(() => {
+    if (ripples.paused) return;
+    const timer = window.setInterval(() => setState((current) => {
+      const previous = current.ripples.clock;
+      const clock = previous + .05;
+      const waves = current.ripples.waves.filter((wave) => clock - wave.at < 5);
+      if (current.ripples.watching && Math.floor(clock / 1.65) > Math.floor(previous / 1.65)) waves.push({ id: newId(), x: 90 + Math.random() * 420, y: 75 + Math.random() * 220, at: clock });
+      return { ...current, ripples: { ...current.ripples, clock, waves } };
+    }), 50);
+    return () => window.clearInterval(timer);
+  }, [ripples.paused, setState]);
+  const addWave = (point: Point) => setState((current) => ({ ...current, ripples: { ...current.ripples, waves: [...current.ripples.waves, { id: newId(), x: point.x, y: point.y, at: current.ripples.clock }] } }));
+  return <div className="mini-activity-body">
+    <svg className="mini-ripple-board" viewBox="0 0 600 360" preserveAspectRatio="none" tabIndex={0} role="img" aria-label="Ink ripple page. Tap or press Enter to add a drop." onPointerDown={(event) => { const point = pointFromEvent(event, 600, 360); addWave(point); }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); addWave({ x: 300, y: 180 }); } }}>
+      <defs><radialGradient id="ripple-wash"><stop stopColor="#f6f1e5" /><stop offset="1" stopColor="#e7e0cf" /></radialGradient></defs>
+      <rect width="600" height="360" fill="url(#ripple-wash)" />
+      {ripples.waves.map((wave) => { const age = ripples.clock - wave.at; const opacity = clamp(1 - age / 5, 0, 1); return <g key={wave.id} fill="none" stroke="#627780" opacity={opacity}>{reducedMotion ? <ellipse cx={wave.x} cy={wave.y} rx="19" ry="12" strokeWidth="2" /> : [0, 1, 2].map((ring) => <ellipse key={ring} cx={wave.x} cy={wave.y} rx={7 + Math.max(0, age - ring * .35) * 45} ry={4 + Math.max(0, age - ring * .35) * 28} strokeWidth={2 - ring * .35} opacity={age > ring * .35 ? 1 : 0} />)}<circle cx={wave.x} cy={wave.y} r="3" fill="#5c7078" opacity={clamp(1 - age)} /></g>; })}
+    </svg>
+    <div className="mini-controls"><button className={ripples.watching ? 'primary-button' : 'quiet-button'} aria-pressed={ripples.watching} onClick={() => setRipples({ watching: !ripples.watching, paused: false })}>{ripples.watching ? 'Stop automatic drops' : 'Watch without tapping'}</button><button className="quiet-button" onClick={() => setRipples({ paused: !ripples.paused })}>{ripples.paused ? <Play size={14} /> : <Pause size={14} />}{ripples.paused ? 'Resume' : 'Pause'}</button><button className="quiet-button" onClick={() => setRipples({ waves: [] })}><Trash2 size={14} /> Clear</button></div>
+    <p className="mini-help">Tap anywhere, or simply watch the ink make its own slow circles.</p>
+  </div>;
+}
+
+function playWaterSound() {
+  try {
+    const audio = new AudioContext();
+    for (let index = 0; index < 3; index++) {
+      const oscillator = audio.createOscillator();
+      const gain = audio.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(230 + index * 45, audio.currentTime + index * .28);
+      oscillator.frequency.exponentialRampToValueAtTime(115 + index * 25, audio.currentTime + index * .28 + .2);
+      gain.gain.setValueAtTime(.0001, audio.currentTime + index * .28);
+      gain.gain.exponentialRampToValueAtTime(.035, audio.currentTime + index * .28 + .02);
+      gain.gain.exponentialRampToValueAtTime(.0001, audio.currentTime + index * .28 + .3);
+      oscillator.connect(gain).connect(audio.destination);
+      oscillator.start(audio.currentTime + index * .28);
+      oscillator.stop(audio.currentTime + index * .28 + .31);
+    }
+    window.setTimeout(() => { void audio.close().catch(() => {}); }, 1300);
+  } catch { /* Audio is optional. */ }
+}
+
+function RocksActivity({ state, setState }: Pick<Props, 'state' | 'setState'>) {
+  const rocks = state.rocks;
+  const reducedMotion = useReducedMotion();
+  const swipeStart = useRef<Point | null>(null);
+  const setRocks = (patch: Partial<MindfulnessState['rocks']>) => setState((current) => ({ ...current, rocks: { ...current.rocks, ...patch } }));
+  useEffect(() => {
+    if (!rocks.running) return;
+    const timer = window.setInterval(() => setState((current) => {
+      const progress = Math.min(1, current.rocks.progress + .015);
+      return { ...current, rocks: { ...current.rocks, progress, running: progress < 1, settling: progress >= 1 } };
+    }), 40);
+    return () => window.clearInterval(timer);
+  }, [rocks.running, setState]);
+  useEffect(() => {
+    if (!rocks.settling) return;
+    const timer = window.setTimeout(() => setRocks({ settling: false }), 700);
+    return () => window.clearTimeout(timer);
+  }, [rocks.settling]);
+  const throwStone = () => { if (rocks.running || rocks.settling) return; setRocks(reducedMotion ? { progress: 1, running: false, settling: true } : { progress: 0, running: true }); if (rocks.sound) playWaterSound(); };
+  const progress = rocks.progress;
+  const stoneX = 75 + progress * 450;
+  const stoneY = 213 - Math.abs(Math.sin(progress * Math.PI * 3)) * (45 - progress * 15);
+  return <div className="mini-activity-body">
+    <svg className="mini-pond" viewBox="0 0 600 360" preserveAspectRatio="none" role="img" aria-label="Watercolor pond. Swipe across to skip a stone." onPointerDown={(event) => { swipeStart.current = pointFromEvent(event, 600, 360); event.currentTarget.setPointerCapture(event.pointerId); }} onPointerUp={(event) => { const end = pointFromEvent(event, 600, 360); if (swipeStart.current && Math.hypot(end.x - swipeStart.current.x, end.y - swipeStart.current.y) > 25) throwStone(); swipeStart.current = null; }} onPointerCancel={() => { swipeStart.current = null; }}>
+      <defs><linearGradient id="pond-water" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#b8cac2" /><stop offset="1" stopColor="#7f9d9d" /></linearGradient></defs>
+      <rect width="600" height="360" fill="#ede5d4" />
+      <path d="M0 94Q96 112 180 86T360 104T600 85V360H0Z" fill="url(#pond-water)" />
+      <path d="M0 95Q88 112 175 88T360 104T600 85" fill="none" stroke="#b6a68c" strokeWidth="10" opacity=".66" />
+      <path d="M30 262Q149 246 271 258T556 250M55 305Q190 293 324 304T564 299" fill="none" stroke="#dbe4d9" strokeWidth="2" opacity=".5" />
+      {[.25, .52, .79].map((stop) => progress > stop && <g key={stop} fill="none" stroke="#e9eee5" opacity={clamp(1 - (progress - stop) * 1.4)}><ellipse cx={75 + stop * 450} cy="213" rx={12 + (progress - stop) * 70} ry={4 + (progress - stop) * 22} /><ellipse cx={75 + stop * 450} cy="213" rx={5 + (progress - stop) * 38} ry={2 + (progress - stop) * 12} /></g>)}
+      {rocks.running && <ellipse cx={stoneX} cy={stoneY} rx="14" ry="6" fill="#756e63" stroke="#5e5c57" strokeWidth="1.5" />}
+      {!rocks.running && <path d="M48 225Q65 212 83 223L89 229Q67 237 47 230Z" fill="#82796b" stroke="#5d5c58" strokeWidth="1.5" />}
+      <path d="M0 338Q137 322 237 340T600 330V360H0Z" fill="#c8bba2" opacity=".73" />
+    </svg>
+    <div className="mini-controls mini-controls-center"><button className="primary-button" disabled={rocks.running || rocks.settling} onClick={throwStone}>{rocks.running || rocks.settling ? 'Let it settle…' : 'Skip a stone'}</button><button className="quiet-button" aria-pressed={rocks.sound} onClick={() => setRocks({ sound: !rocks.sound })}>{rocks.sound ? <Volume2 size={15} /> : <VolumeX size={15} />}{rocks.sound ? 'Water sound on' : 'Water sound off'}</button></div>
+    <p className="mini-help">Swipe across the pond, or use the button. There is no perfect throw.</p>
+  </div>;
+}
+
+function FudeCursor({ point, size, drawing }: { point: Point; size: number; drawing: boolean }) {
+  return <g className={`mini-fude-cursor ${drawing ? 'is-drawing' : ''}`} transform={`translate(${point.x} ${point.y}) rotate(36)`} aria-hidden="true">
+    <ellipse cx="0" cy="2" rx={Math.max(2.2, size * .3)} ry="1.8" fill="#405456" opacity=".32" />
+    <path d="M0 1C-5-8-7-20-4-29L4-29C7-20 5-8 0 1Z" fill="#2f3f40" stroke="#263536" strokeWidth="1" />
+    <path d="M-4-29L-5-38H5L4-29Z" fill="#b9975d" stroke="#786446" strokeWidth="1" />
+    <path d="M-5-38L-4-82Q0-88 4-82L5-38Z" fill="#773d4e" stroke="#5d3140" strokeWidth="1.2" />
+    <path d="M-1.5-78L-1-43" stroke="#c88a88" strokeWidth="1.2" opacity=".55" />
+    <path d="M-4-82Q0-89 4-82" fill="#c2a36b" stroke="#786446" strokeWidth="1" />
+  </g>;
+}
+
+function WaterActivity({ state, setState }: Pick<Props, 'state' | 'setState'>) {
+  const water = state.water;
+  const reducedMotion = useReducedMotion();
+  const drawing = useRef<Stroke | null>(null);
+  const [live, setLive] = useState<Stroke | null>(null);
+  const [cursor, setCursor] = useState<Point>({ x: 300, y: 200 });
+  const [brushCursor, setBrushCursor] = useState<Point | null>(null);
+  const setWater = (patch: Partial<MindfulnessState['water']>) => setState((current) => ({ ...current, water: { ...current.water, ...patch } }));
+  const addKeyboardStroke = (points: Point[]) => setState((current) => ({ ...current, water: { ...current.water, strokes: [...current.water.strokes, { id: newId(), points, color: '#4b6163', size: current.water.size, at: current.water.clock }] } }));
+  useEffect(() => {
+    if (water.drying === 'paused' || reducedMotion) return;
+    const timer = window.setInterval(() => setState((current) => ({ ...current, water: { ...current.water, clock: current.water.clock + (current.water.drying === 'slow' ? .018 : .05) } })), 50);
+    return () => window.clearInterval(timer);
+  }, [water.drying, reducedMotion, setState]);
+  const finish = () => { if (!drawing.current) return; const stroke = drawing.current; setState((current) => ({ ...current, water: { ...current.water, strokes: [...current.water.strokes, stroke] } })); drawing.current = null; setLive(null); };
+  const renderStroke = (stroke: Stroke) => {
+    const age = water.clock - stroke.at;
+    const opacity = clamp(1 - age / 13, 0, 1) * .72;
+    if (opacity <= 0) return null;
+    return <g key={stroke.id} opacity={opacity} stroke={stroke.color} strokeLinecap="round" strokeLinejoin="round">{stroke.points.length === 1 ? <circle cx={stroke.points[0].x} cy={stroke.points[0].y} r={stroke.size * .38} fill={stroke.color} /> : stroke.points.slice(1).map((point, index) => { const previous = stroke.points[index]; const taper = .28 + .72 * Math.sin((index + 1) / stroke.points.length * Math.PI); return <line key={index} x1={previous.x} y1={previous.y} x2={point.x} y2={point.y} strokeWidth={stroke.size * taper} />; })}</g>;
+  };
+  return <div className="mini-activity-body">
+    <div className="mini-controls"><label>Brush size <select value={water.size} onChange={(event) => setWater({ size: Number(event.target.value) })}><option value="5">Fine</option><option value="9">Medium</option><option value="16">Broad</option></select></label><label>Drying <select value={water.drying} onChange={(event) => setWater({ drying: event.target.value as MindfulnessState['water']['drying'] })}><option value="normal">Gentle</option><option value="slow">Slower</option><option value="paused">Paused</option></select></label><button className="quiet-button" onClick={() => setWater({ strokes: [] })}><Trash2 size={14} /> Clear</button></div>
+    <svg className="mini-water-board" viewBox="0 0 600 400" preserveAspectRatio="none" tabIndex={0} role="img" aria-label="Water brush surface. Use touch or mouse, or arrow keys to move, Space to mark, and Shift with arrows to draw." onKeyDown={(event) => { const step = 16; const offsets: Record<string, Point> = { ArrowLeft: { x: -step, y: 0 }, ArrowRight: { x: step, y: 0 }, ArrowUp: { x: 0, y: -step }, ArrowDown: { x: 0, y: step } }; const offset = offsets[event.key]; if (offset) { event.preventDefault(); const next = { x: clamp(cursor.x + offset.x, 0, 600), y: clamp(cursor.y + offset.y, 0, 400) }; if (event.shiftKey) addKeyboardStroke([cursor, next]); setCursor(next); } else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); addKeyboardStroke([cursor]); } }} onPointerEnter={(event) => { if (event.pointerType !== 'touch') setBrushCursor(pointFromEvent(event)); }} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); const point = pointFromEvent(event); if (event.pointerType !== 'touch') setBrushCursor(point); const stroke = { id: newId(), points: [point], color: '#4b6163', size: water.size, at: water.clock }; drawing.current = stroke; setLive(stroke); }} onPointerMove={(event) => { const point = pointFromEvent(event); if (event.pointerType !== 'touch') setBrushCursor(point); if (!drawing.current) return; const stroke = { ...drawing.current, points: [...drawing.current.points, point] }; drawing.current = stroke; setLive(stroke); }} onPointerUp={(event) => { if (event.pointerType !== 'touch') setBrushCursor(pointFromEvent(event)); finish(); }} onPointerCancel={() => { setBrushCursor(null); finish(); }} onPointerLeave={() => { if (!drawing.current) setBrushCursor(null); }}>
+      <rect width="600" height="400" fill="#d9d7c9" />
+      <path d="M19 25H581V375H19Z" fill="none" stroke="#b7b5a7" strokeWidth="2" />
+      {water.strokes.map(renderStroke)}{live && renderStroke(live)}
+      <FudeCursor point={brushCursor ?? cursor} size={water.size} drawing={Boolean(live)} />
+    </svg>
+    <p className="mini-help">Write a word, draw a symbol, or follow the brush wherever it goes. {reducedMotion ? 'Drying stays paused while reduced motion is on.' : 'The water dries on its own.'}</p>
+  </div>;
+}
+
+type FallingFruit = { id: number; x: number; y: number; vx: number; vy: number; kind: number; spin: number };
+type SlicedHalf = { id: string; fruitId: number; kind: number; x: number; y: number; spin: number; cutX: number; cutY: number; cutAngle: number; side: -1 | 1 };
+const fruitPalette = [
+  { fill: '#c96f5d', shade: '#a9534b', leaf: '#788a68' },
+  { fill: '#d9a64f', shade: '#bf8045', leaf: '#718565' },
+  { fill: '#a87b9a', shade: '#805b7d', leaf: '#788a68' },
+  { fill: '#d27f68', shade: '#b45c56', leaf: '#788a68' },
+];
+
+function FruitArtwork({ kind, style }: { kind: number; style: typeof fruitPalette[number] }) {
+  return <g stroke="#66574b" strokeWidth="2.5" strokeLinejoin="round">
+    {kind === 0 ? <><path d="M0-25Q-5-38 1-44" fill="none" strokeWidth="4"/><path d="M1-39Q13-47 20-40Q15-30 3-34Z" fill={style.leaf}/><path d="M-25-2Q-22-28-4-25Q0-34 7-25Q25-28 26-3Q27 20 10 26Q0 32-10 26Q-28 22-25-2Z" fill={style.fill}/><path d="M-15-12Q-12-19-7-17" fill="none" stroke="#edc3a0" strokeWidth="3"/></> : kind === 1 ? <><path d="M-24 0Q-21-26 0-27Q21-26 24 0Q23 27 0 28Q-23 25-24 0Z" fill={style.fill}/><path d="M-2-24Q2-34 8-34" fill="none" strokeWidth="4"/><path d="M5-31Q15-38 20-31Q14-24 5-26Z" fill={style.leaf}/><path d="M-15-8Q-11-14-7-14" fill="none" stroke="#f5d9a0" strokeWidth="3"/></> : <><circle r="25" fill={style.fill}/><path d="M-3-23Q-3-34 5-38" fill="none" strokeWidth="4"/><path d="M3-34Q13-40 18-33Q11-26 3-29Z" fill={style.leaf}/><circle cx="-8" cy="-7" r="3" fill="#f4ded0" stroke="none"/><circle cx="5" cy="3" r="3" fill="#f4ded0" stroke="none"/><circle cx="-5" cy="10" r="3" fill="#f4ded0" stroke="none"/></>}
+  </g>;
+}
+
+function fruitHalfClip(half: SlicedHalf) {
+  const dx = Math.cos(half.cutAngle) * 100;
+  const dy = Math.sin(half.cutAngle) * 100;
+  const nx = -Math.sin(half.cutAngle) * 100 * half.side;
+  const ny = Math.cos(half.cutAngle) * 100 * half.side;
+  return `M${half.cutX - dx} ${half.cutY - dy}L${half.cutX + dx} ${half.cutY + dy}L${half.cutX + dx + nx} ${half.cutY + dy + ny}L${half.cutX - dx + nx} ${half.cutY - dy + ny}Z`;
+}
+
+function closestPointOnSegment(point: Point, start: Point, end: Point) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = dx * dx + dy * dy;
+  const t = length ? clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / length) : 0;
+  return { x: start.x + t * dx, y: start.y + t * dy };
+}
+
+function segmentDistance(point: Point, start: Point, end: Point) {
+  const closest = closestPointOnSegment(point, start, end);
+  return Math.hypot(point.x - closest.x, point.y - closest.y);
+}
+
+function OrchardActivity({ state, setState }: Pick<Props, 'state' | 'setState'>) {
+  const [phase, setPhase] = useState<'ready' | 'playing' | 'done'>('ready');
+  const [score, setScore] = useState(0);
+  const [seconds, setSeconds] = useState(30);
+  const [fruit, setFruit] = useState<Array<Pick<FallingFruit, 'id' | 'kind'>>>([]);
+  const [halves, setHalves] = useState<SlicedHalf[]>([]);
+  const [round, setRound] = useState(0);
+  const fruitNodes = useRef(new Map<number, SVGGElement>());
+  const trailNode = useRef<SVGPolylineElement>(null);
+  const board = useRef<SVGSVGElement>(null);
+  const fruits = useRef<FallingFruit[]>([]);
+  const trailPoints = useRef<Array<Point & { at: number }>>([]);
+  const previousPoint = useRef<Point | null>(null);
+  const slicing = useRef(false);
+  const scoreRef = useRef(0);
+  const startedAt = useRef(0);
+  const randomId = () => Math.random();
+  const start = () => {
+    fruits.current = [];
+    trailPoints.current = [];
+    scoreRef.current = 0;
+    previousPoint.current = null;
+    slicing.current = false;
+    trailNode.current?.setAttribute('points', '');
+    setFruit([]); setHalves([]); setScore(0); setSeconds(30);
+    startedAt.current = performance.now();
+    setRound((value) => value + 1);
+    setPhase('playing');
+  };
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    let frame = 0;
+    let previous = performance.now();
+    let nextSpawn = previous + 250;
+    let displayedSeconds = 30;
+    const animate = (now: number) => {
+      const dt = Math.min((now - previous) / 1000, .04);
+      previous = now;
+      const elapsed = (now - startedAt.current) / 1000;
+      const remain = Math.max(0, 30 - elapsed);
+      if (remain <= 0) {
+        setPhase('done');
+        setState((current) => ({ ...current, orchard: { best: Math.max(current.orchard.best, scoreRef.current) } }));
+        slicing.current = false; previousPoint.current = null;
+        trailPoints.current = []; trailNode.current?.setAttribute('points', '');
+        setSeconds(0);
+        return;
+      }
+      let rosterChanged = false;
+      if (now >= nextSpawn) {
+        const x = 45 + Math.random() * 510;
+        fruits.current = [...fruits.current, { id: randomId(), x, y: 390, vx: (Math.random() - .5) * 260, vy: -(570 + Math.random() * 170), kind: Math.floor(Math.random() * fruitPalette.length), spin: Math.random() * 30 - 15 }];
+        nextSpawn = now + Math.max(390, 820 - elapsed * 9) + Math.random() * 240;
+        rosterChanged = true;
+      }
+      // Only mounts/removals go through React; movement paints on every display frame.
+      for (const item of fruits.current) {
+        item.x += item.vx * dt;
+        item.y += item.vy * dt + 380 * dt * dt;
+        item.vy += 760 * dt;
+        item.spin += item.vx * dt * .08;
+        fruitNodes.current.get(item.id)?.setAttribute('transform', `translate(${item.x} ${item.y}) rotate(${item.spin})`);
+      }
+      const visible = fruits.current.filter((item) => item.y < 450 && item.x > -60 && item.x < 660);
+      rosterChanged ||= visible.length !== fruits.current.length;
+      fruits.current = visible;
+      if (rosterChanged) setFruit(visible.map(({ id, kind }) => ({ id, kind })));
+      trailPoints.current = trailPoints.current.filter((point) => now - point.at < 160);
+      trailNode.current?.setAttribute('points', trailPoints.current.map((point) => `${point.x},${point.y}`).join(' '));
+      if (Math.ceil(remain) !== displayedSeconds) {
+        displayedSeconds = Math.ceil(remain);
+        setSeconds(displayedSeconds);
+      }
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [phase, round, setState]);
+  const pointAt = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return { x: clamp((event.clientX - rect.left) / rect.width, 0, 1) * 600, y: clamp((event.clientY - rect.top) / rect.height, 0, 1) * 420 };
+  };
+  const sliceAt = (point: Point) => {
+    const previous = previousPoint.current ?? point;
+    const sliceDx = point.x - previous.x;
+    const sliceDy = point.y - previous.y;
+    const sliceAngle = Math.atan2(sliceDy, sliceDx);
+    const sliced = new Set<number>();
+    const newHalves: SlicedHalf[] = [];
+    fruits.current.forEach((item) => {
+      if (segmentDistance(item, previous, point) >= 31) return;
+      sliced.add(item.id);
+      const cut = closestPointOnSegment(item, previous, point);
+      const spin = item.spin * Math.PI / 180;
+      const offsetX = cut.x - item.x;
+      const offsetY = cut.y - item.y;
+      const cutX = offsetX * Math.cos(spin) + offsetY * Math.sin(spin);
+      const cutY = -offsetX * Math.sin(spin) + offsetY * Math.cos(spin);
+      const cutAngle = sliceAngle - spin;
+      const fruitId = `${Math.round(item.id * 1e9)}-${Math.random().toString(36).slice(2, 7)}`;
+      ([-1, 1] as const).forEach((side) => newHalves.push({ id: `${fruitId}-${side}`, fruitId: item.id, kind: item.kind, x: item.x, y: item.y, spin: item.spin, cutX, cutY, cutAngle, side }));
+    });
+    if (sliced.size) {
+      scoreRef.current += sliced.size;
+      fruits.current = fruits.current.filter((item) => !sliced.has(item.id));
+      setHalves((current) => [...current, ...newHalves]);
+      setFruit(fruits.current.map(({ id, kind }) => ({ id, kind }))); setScore(scoreRef.current);
+    }
+    previousPoint.current = point;
+    trailPoints.current = [...trailPoints.current, { ...point, at: performance.now() }].slice(-24);
+  };
+  const finishSlice = () => { slicing.current = false; previousPoint.current = null; };
+  return <div className="mini-activity-body mini-arcade">
+    <div className="mini-game-stats"><span>Score <strong>{score}</strong></span><span>Time <strong>{seconds}s</strong></span><span>Best <strong>{Math.max(state.orchard.best, score)}</strong></span></div>
+    <svg ref={board} className="mini-orchard-board" viewBox="0 0 600 420" preserveAspectRatio="none" role="img" aria-label="Orchard Sweep fruit slicing game. Drag through falling fruit to score points." onPointerDown={(event) => { if (phase !== 'playing') return; event.currentTarget.setPointerCapture(event.pointerId); slicing.current = true; sliceAt(pointAt(event)); }} onPointerMove={(event) => { if (phase === 'playing' && slicing.current) sliceAt(pointAt(event)); }} onPointerUp={finishSlice} onPointerCancel={finishSlice}>
+      <rect width="600" height="420" fill="#f3ead8" />
+      <path d="M0 350Q150 327 300 350T600 345V420H0Z" fill="#d9dfcd" opacity=".7" />
+      <path d="M0 353Q150 330 300 353T600 348" fill="none" stroke="#9eaa8c" strokeWidth="2" opacity=".7" />
+      <path d="M45 387Q155 373 265 388M345 393Q451 378 562 390" fill="none" stroke="#b9a98d" strokeWidth="1.5" opacity=".6" />
+      {fruit.map((item) => <g key={item.id} className="mini-orchard-fruit" ref={(node) => {
+        if (!node) { fruitNodes.current.delete(item.id); return; }
+        fruitNodes.current.set(item.id, node);
+        const live = fruits.current.find((entry) => entry.id === item.id);
+        if (live) node.setAttribute('transform', `translate(${live.x} ${live.y}) rotate(${live.spin})`);
+      }}><FruitArtwork kind={item.kind} style={fruitPalette[item.kind]} /></g>)}
+      {halves.map((half) => {
+        const clipId = `orchard-${half.id}`;
+        const dx = Math.cos(half.cutAngle) * 32;
+        const dy = Math.sin(half.cutAngle) * 32;
+        const nx = -Math.sin(half.cutAngle) * half.side;
+        const ny = Math.cos(half.cutAngle) * half.side;
+        const animationStyle = { '--half-x': `${nx * 44}px`, '--half-y': `${ny * 44 + 68}px`, '--half-rotation': `${half.side * 27}deg` } as CSSProperties;
+        return <g key={half.id} transform={`translate(${half.x} ${half.y}) rotate(${half.spin})`}>
+          <defs><clipPath id={clipId}><path d={fruitHalfClip(half)} /></clipPath></defs>
+          <g className="mini-fruit-half" style={animationStyle} onAnimationEnd={() => setHalves((current) => current.filter((item) => item.id !== half.id))} clipPath={`url(#${clipId})`}><FruitArtwork kind={half.kind} style={fruitPalette[half.kind]} /><path d={`M${half.cutX - dx} ${half.cutY - dy}L${half.cutX + dx} ${half.cutY + dy}`} fill="none" stroke="#f8e7c8" strokeWidth="3.5" strokeLinecap="round" /></g>
+        </g>;
+      })}
+      <polyline ref={trailNode} fill="none" stroke="#fffaf0" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" opacity=".92" pointerEvents="none"/>
+      {phase !== 'playing' && <g><rect x="80" y="145" width="440" height="130" rx="8" fill="#fffaf0" opacity=".94" stroke="#c5b5a0"/><text x="300" y="194" textAnchor="middle" className="mini-game-overlay-title">{phase === 'ready' ? 'A little orchard break' : 'Lovely picking'}</text><text x="300" y="226" textAnchor="middle" className="mini-game-overlay-copy">{phase === 'ready' ? 'Swipe through the fruit as it drifts by.' : `You gathered ${score} ${score === 1 ? 'fruit' : 'fruits'}. Take that with you.`}</text><text x="300" y="250" textAnchor="middle" className="mini-game-overlay-copy">{phase === 'ready' ? 'No misses to worry about.' : 'Ready for another round?'}</text></g>}
+    </svg>
+    <div className="mini-controls mini-controls-center"><button className="primary-button" onClick={start}><RotateCcw size={14}/>{phase === 'ready' ? 'Start Orchard Sweep' : 'Play again'}</button></div>
+    <p className="mini-help">Drag across the page with a finger or pointer to slice the falling fruit. You have 30 seconds.</p>
+  </div>;
+}
+
+type Platform = { id: number; x: number; y: number; width: number };
+type CloverPlayer = { x: number; y: number; vx: number; vy: number };
+
+function CloversAscent({ state, setState }: Pick<Props, 'state' | 'setState'>) {
+  const [phase, setPhase] = useState<'ready' | 'playing' | 'done'>('ready');
+  const [score, setScore] = useState(0);
+  const [player, setPlayer] = useState<CloverPlayer>({ x: 300, y: 420, vx: 0, vy: 0 });
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [camera, setCamera] = useState(0);
+  const board = useRef<SVGSVGElement>(null);
+  const playerRef = useRef<CloverPlayer>({ x: 300, y: 420, vx: 0, vy: 0 });
+  const platformsRef = useRef<Platform[]>([]);
+  const cameraRef = useRef(0);
+  const keys = useRef(new Set<string>());
+  const heldButtons = useRef(new Map<number, CloverDirection>());
+  const dragTarget = useRef<{ pointerId: number; x: number } | null>(null);
+  const bestScore = useRef(0);
+  const clearInput = () => {
+    keys.current.clear();
+    heldButtons.current.clear();
+    dragTarget.current = null;
+  };
+  const reset = () => {
+    const initialPlatforms = [{ id: 0, x: 182, y: 466, width: 236 }, { id: 1, x: 240, y: 382, width: 120 }, { id: 2, x: 320, y: 302, width: 120 }, { id: 3, x: 240, y: 222, width: 120 }, { id: 4, x: 320, y: 142, width: 120 }, { id: 5, x: 240, y: 62, width: 120 }];
+    const initialPlayer = { x: 300, y: 420, vx: 0, vy: -680 };
+    platformsRef.current = initialPlatforms;
+    playerRef.current = initialPlayer;
+    cameraRef.current = 0;
+    bestScore.current = 0;
+    clearInput();
+    setPlatforms(initialPlatforms); setPlayer(initialPlayer); setCamera(0); setScore(0);
+  };
+  const start = () => {
+    reset();
+    setPhase('playing');
+    board.current?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+    board.current?.focus({ preventScroll: true });
+  };
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    board.current?.focus({ preventScroll: true });
+    let frame = 0;
+    let last = performance.now();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select'))) return;
+      const key = event.key.toLowerCase();
+      if (!['arrowleft', 'arrowright', 'a', 'd'].includes(key)) return;
+      keys.current.add(key);
+      dragTarget.current = null;
+      event.preventDefault();
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      keys.current.delete(event.key.toLowerCase());
+    };
+    const releaseInput = () => {
+      clearInput();
+      playerRef.current = { ...playerRef.current, vx: 0 };
+      last = performance.now();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', releaseInput);
+    document.addEventListener('visibilitychange', releaseInput);
+    const animate = (now: number) => {
+      const dt = Math.min((now - last) / 1000, .035);
+      last = now;
+      const old = playerRef.current;
+      // The most recently pressed direction wins; releasing it restores any
+      // other key still held, including mixed arrow-key / A-D inputs.
+      let direction: CloverDirection = 0;
+      for (const key of keys.current) direction = key === 'arrowleft' || key === 'a' ? -1 : 1;
+      for (const held of heldButtons.current.values()) direction = held;
+      const horizontal = stepCloverSteering(old, direction, dt, dragTarget.current?.x);
+      const next = { x: wrapCloverX(horizontal.x), y: old.y + old.vy * dt + 690 * dt * dt * .5, vx: horizontal.vx, vy: old.vy + 690 * dt };
+      const nextCamera = Math.max(cameraRef.current, 270 - next.y);
+      if (next.vy > 0) {
+        const oldFeet = old.y + 19, feet = next.y + 19;
+        // Catch only leaves still inside the play area. Snap Clover's feet to
+        // the leaf to avoid tunneling through it at higher fall speeds.
+        const platform = platformsRef.current.find((item) => {
+          const screenY = item.y + nextCamera;
+          const overlapsHorizontally = next.x + 12 >= item.x && next.x - 12 <= item.x + item.width;
+          return screenY >= -20 && screenY <= 480 && oldFeet <= item.y && feet >= item.y && overlapsHorizontally;
+        });
+        if (platform) {
+          next.y = platform.y - 19;
+          next.vy = -680;
+        }
+      }
+      playerRef.current = next;
+      cameraRef.current = nextCamera;
+      const existingPlatforms = platformsRef.current;
+      let nextPlatforms = existingPlatforms.filter((item) => item.y + nextCamera > -650 && item.y + nextCamera < 900);
+      let platformsChanged = nextPlatforms.length !== existingPlatforms.length;
+      let top = Math.min(...nextPlatforms.map((item) => item.y));
+      while (top > next.y - 650) {
+        const x = 24 + Math.random() * 444;
+        top -= 74 + Math.random() * 34;
+        nextPlatforms = [...nextPlatforms, { id: Math.random(), x, y: top, width: 90 + Math.random() * 32 }];
+        platformsChanged = true;
+      }
+      platformsRef.current = nextPlatforms;
+      const altitude = Math.max(0, Math.floor((420 - next.y) / 10));
+      bestScore.current = Math.max(bestScore.current, altitude);
+      // Clover's feet are 25px below the character origin. End the run as
+      // soon as that sensor crosses the bottom edge instead of waiting for
+      // the whole character to disappear or an off-screen leaf to catch her.
+      if (next.vy > 0 && next.y + nextCamera + 25 >= 500) {
+        clearInput();
+        setPlayer({ ...next }); setCamera(nextCamera);
+        setScore(bestScore.current);
+        setPhase('done'); setState((current) => ({ ...current, clover: { best: Math.max(current.clover.best, bestScore.current) } }));
+        return;
+      }
+      setPlayer({ ...next }); setCamera(nextCamera); setScore(bestScore.current);
+      if (platformsChanged) setPlatforms(nextPlatforms);
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', releaseInput);
+      document.removeEventListener('visibilitychange', releaseInput);
+      clearInput();
+    };
+  }, [phase, setState]);
+  const steerToPointer = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    dragTarget.current = { pointerId: event.pointerId, x: clamp((event.clientX - rect.left) / rect.width * CLOVER_BOARD_WIDTH, 26, CLOVER_BOARD_WIDTH - 26) };
+  };
+  const releasePointer = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (dragTarget.current?.pointerId === event.pointerId) dragTarget.current = null;
+  };
+  const hold = (event: ReactPointerEvent<HTMLButtonElement>, direction: CloverDirection) => {
+    if (phase !== 'playing' || event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    heldButtons.current.set(event.pointerId, direction);
+    dragTarget.current = null;
+    board.current?.focus({ preventScroll: true });
+  };
+  const releaseButton = (event: ReactPointerEvent<HTMLButtonElement>) => { heldButtons.current.delete(event.pointerId); };
+  const spriteOffsets = player.x < 26 ? [0, CLOVER_BOARD_WIDTH] : player.x > CLOVER_BOARD_WIDTH - 26 ? [0, -CLOVER_BOARD_WIDTH] : [0];
+  return <div className="mini-activity-body mini-arcade">
+    <div className="mini-game-stats"><span>Height <strong>{score} m</strong></span><span>Best <strong>{Math.max(state.clover.best, score)} m</strong></span><span>Move <strong>← →</strong></span></div>
+    <svg ref={board} className="mini-clover-board" data-playing={phase === 'playing'} viewBox="0 0 600 500" preserveAspectRatio="none" tabIndex={0} role="img" aria-label="Clover’s Ascent. Steer with arrow keys, A and D, or drag across the game. Clover bounces automatically from the leaf platforms."
+      onPointerDown={(event) => {
+        if (phase !== 'playing' || !event.isPrimary || event.button !== 0) return;
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        event.currentTarget.focus({ preventScroll: true });
+        steerToPointer(event);
+      }}
+      onPointerMove={(event) => { if (phase === 'playing' && dragTarget.current?.pointerId === event.pointerId) steerToPointer(event); }}
+      onPointerUp={releasePointer} onPointerCancel={releasePointer} onLostPointerCapture={releasePointer}>
+      <rect width="600" height="500" fill="#f3ead8" />
+      <path d={`M0 ${460 + camera}Q150 ${444 + camera} 300 ${461 + camera}T600 ${454 + camera}V500H0Z`} fill="#d9dfcd" opacity=".64" />
+      {platforms.map((item) => { const y = item.y + camera; return y > -45 && y < 535 ? <g key={item.id} transform={`translate(${item.x} ${y})`}><path d={`M0 4Q${item.width * .22} -5 ${item.width * .48} 1T${item.width} 0`} fill="none" stroke="#667b5f" strokeWidth="3" strokeLinecap="round"/><path d={`M${item.width * .42} 0Q${item.width * .47} -13 ${item.width * .57} -10`} fill="none" stroke="#788a68" strokeWidth="2"/><ellipse cx={item.width * .53} cy="-9" rx="9" ry="5" transform={`rotate(-22 ${item.width * .53} -9)`} fill="#9cab83" stroke="#667b5f" strokeWidth="1.4"/></g> : null; })}
+      {spriteOffsets.map((offset) => <g key={offset} transform={`translate(${player.x + offset} ${player.y + camera})`} className="mini-clover-character"><path d="M-7 9Q-19 16-15 25M7 9Q19 16 15 25" fill="none" stroke="#667b5f" strokeWidth="3" strokeLinecap="round"/><path d="M-3 10L-8 21M3 10L8 21" stroke="#667b5f" strokeWidth="2.5" strokeLinecap="round"/><g fill="#91a27b" stroke="#667b5f" strokeWidth="2"><circle cx="0" cy="-5" r="12"/><circle cx="-10" cy="-14" r="8"/><circle cx="10" cy="-14" r="8"/><circle cx="-9" cy="3" r="8"/><circle cx="9" cy="3" r="8"/></g><circle cx="0" cy="-5" r="3" fill="#e5cb96" stroke="#9e835e" strokeWidth="1.3"/><circle cx="-3" cy="-6" r="1.1" fill="#493b34" stroke="none"/><circle cx="3" cy="-6" r="1.1" fill="#493b34" stroke="none"/></g>)}
+      {phase !== 'playing' && <g><rect x="80" y="165" width="440" height="150" rx="8" fill="#fffaf0" opacity=".95" stroke="#c5b5a0"/><text x="300" y="211" textAnchor="middle" className="mini-game-overlay-title">{phase === 'ready' ? 'Clover’s Ascent' : 'The climb is over'}</text><text x="300" y="245" textAnchor="middle" className="mini-game-overlay-copy">{phase === 'ready' ? 'Guide Clover from leaf to leaf.' : `Clover slipped past the last leaf at ${score} m.`}</text><text x="300" y="271" textAnchor="middle" className="mini-game-overlay-copy">{phase === 'ready' ? 'The bounce is automatic.' : 'Want to try the climb again?'}</text></g>}
+    </svg>
+    <div className="mini-controls mini-controls-center mini-jump-controls">
+      <button className="quiet-button" aria-label="Move Clover left" disabled={phase !== 'playing'} onPointerDown={(event) => hold(event, -1)} onPointerUp={releaseButton} onPointerCancel={releaseButton} onLostPointerCapture={releaseButton}>←</button>
+      <button className="primary-button" onClick={start}><RotateCcw size={14}/>{phase === 'ready' ? 'Start the climb' : 'Climb again'}</button>
+      <button className="quiet-button" aria-label="Move Clover right" disabled={phase !== 'playing'} onPointerDown={(event) => hold(event, 1)} onPointerUp={releaseButton} onPointerCancel={releaseButton} onLostPointerCapture={releaseButton}>→</button>
+    </div>
+    <p className="mini-help">Use ← → or A and D, drag across the game, or hold the arrow buttons. Release to stop steering. Clover bounces on its own.</p>
+  </div>;
+}
+
+export function MindfulnessMinigames({ state, setState, onSupport }: Props) {
+  const keepKeysBest = useCallback((best: number) => setState((previous) => best > previous.keys.best ? { ...previous, keys: { best } } : previous), [setState]);
+  const keepStackBest = useCallback((best: number) => setState((previous) => best > previous.stack.best ? { ...previous, stack: { best } } : previous), [setState]);
+  const current = state.current;
+  const gamesPageRef = useRef<HTMLDivElement | null>(null);
+  const previousActivity = useRef(current);
+  useEffect(() => {
+    gamesPageRef.current?.scrollTo({ top: 0 });
+    if (current !== previousActivity.current && window.matchMedia('(max-width: 780px)').matches) {
+      gamesPageRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    }
+    previousActivity.current = current;
+  }, [current]);
+  const open = (activity: ActivityId | null) => setState((previous) => ({ ...previous, current: activity }));
+  const currentName = activities.find((activity) => activity.id === current)?.name;
+  return <div className={`spread minigames-spread${current ? '' : ' mini-selection-spread'}${current === 'keys' ? ' petal-keys-spread' : ''}`} data-testid="page-minigames">
+    <section className="sheet minigames-sheet mini-games-page"><div ref={gamesPageRef} className="sheet-content" tabIndex={0} role="region" aria-label="Mindfulness games">
+      <div className="sheet-rubric eyebrow"><span>A little room to pause</span><span className="page-no">07 / 08</span></div>
+      <div className="mini-topbar">{current ? <button className="mini-back" onClick={() => open(null)}><ArrowLeft size={16} /> Back to games</button> : <span className="mini-topbar-spacer" />}<button className="mini-support" onClick={onSupport}><ShieldCheck size={15} /> Support</button></div>
+      {current ? <div key={current} className="mini-paper-in"><div className="mini-intro"><h3>{currentName}</h3><p>{activities.find((activity) => activity.id === current)?.hint}</p></div>
+        {current === 'breath' && <BreathActivity state={state} setState={setState} />}
+        {current === 'keys' && <PetalKeys best={state.keys.best} onBest={keepKeysBest} />}
+        {current === 'stack' && <PatchworkStack best={state.stack.best} onBest={keepStackBest} />}
+        {current === 'garden' && <GardenActivity state={state} setState={setState} />}
+        {current === 'ripples' && <RipplesActivity state={state} setState={setState} />}
+        {current === 'rocks' && <RocksActivity state={state} setState={setState} />}
+        {current === 'water' && <WaterActivity state={state} setState={setState} />}
+        {current === 'orchard' && <OrchardActivity state={state} setState={setState} />}
+        {current === 'clover' && <CloversAscent state={state} setState={setState} />}
+      </div> : <Launcher onOpen={open} />}
+    </div></section>
+    <section className="sheet mini-note-page"><div className="sheet-content" tabIndex={0} role="region" aria-label="A note beside the games">
+      <div className="sheet-rubric eyebrow"><span>A note beside the games</span><span className="page-no">08 / 08</span></div>
+      <div className="mini-note-content">
+        <div className="eyebrow">A small invitation</div>
+        <h3>Hopefully these little games help.</h3>
+        <p>We hope they offer a softer moment to pause, make something, or simply watch. Choose what feels inviting today.</p>
+        <p>Choose a quiet activity or a playful little challenge. There is no right pace, and anything you try stays within this visit.</p>
+        <svg className="mini-note-flower" viewBox="0 0 240 220" aria-hidden="true"><path d="M120 187Q115 123 124 70" fill="none" stroke="#77866d" strokeWidth="2" /><path d="M118 147Q87 122 64 135Q82 158 119 156M121 129Q152 106 178 116Q158 139 122 137" fill="#a7b394" stroke="#7d8c76" strokeWidth="1.5" /><g fill="#ca9284" opacity=".76" stroke="#9f786d" strokeWidth="1.2"><ellipse cx="122" cy="53" rx="15" ry="32" /><ellipse cx="122" cy="53" rx="15" ry="32" transform="rotate(60 122 76)" /><ellipse cx="122" cy="53" rx="15" ry="32" transform="rotate(120 122 76)" /><ellipse cx="122" cy="53" rx="15" ry="32" transform="rotate(180 122 76)" /><ellipse cx="122" cy="53" rx="15" ry="32" transform="rotate(240 122 76)" /><ellipse cx="122" cy="53" rx="15" ry="32" transform="rotate(300 122 76)" /></g><circle cx="122" cy="76" r="13" fill="#e5cb96" stroke="#9f8063" strokeWidth="1.5" /></svg>
+        <div className="mini-note-end eyebrow">For this moment, that is enough.</div>
+      </div>
+    </div></section>
+  </div>;
+}

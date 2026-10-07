@@ -16,7 +16,7 @@ export function useBookTurn(frameRef: RefObject<HTMLDivElement | null>, pageKey:
   const rendererRef = useRef<{ width: number; height: number; stacked: boolean; renderer: ReturnType<typeof createBookRenderer> } | null>(null);
 
   function getRenderer(frame: HTMLElement, stacked: boolean) {
-    const { clientWidth: width, clientHeight: height } = frame;
+    const { width, height } = frame.getBoundingClientRect();
     const cached = rendererRef.current;
     if (cached && cached.width === width && cached.height === height && cached.stacked === stacked && !cached.renderer.isContextLost()) return cached.renderer;
     cached?.renderer.dispose();
@@ -66,9 +66,21 @@ export function useBookTurn(frameRef: RefObject<HTMLDivElement | null>, pageKey:
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (frame && mobileDirection.current) {
-      const offset = mobileDirection.current === 'next' ? 8 : -8;
+      const direction = mobileDirection.current;
       mobileDirection.current = null;
-      const animation = frame.animate([{ transform: `translateX(${offset}px)`, opacity: .8 }, { transform: 'translateX(0)', opacity: 1 }], { duration: 160, easing: 'ease-out' });
+      const sheet = Array.from(frame.querySelectorAll<HTMLElement>(':scope > .spread > .sheet')).find((page) => getComputedStyle(page).display !== 'none');
+      if (!sheet) return;
+      // The new mobile page drops in with a little weight: it arrives from
+      // above, settles just past its resting point, then springs back while
+      // the ink fades in. This keeps the paper itself moving without making
+      // the arrows or page counter wobble with it.
+      const travel = direction === 'next' ? -18 : -14;
+      const animation = sheet.animate([
+        { opacity: 0, transform: `translate3d(0, ${travel}px, 0) scale(.985)`, offset: 0 },
+        { opacity: .86, transform: 'translate3d(0, 3px, 0) scale(1.006)', offset: .62 },
+        { opacity: 1, transform: 'translate3d(0, -1px, 0) scale(.999)', offset: .84 },
+        { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)', offset: 1 },
+      ], { duration: 245, easing: 'cubic-bezier(.2,.78,.25,1)', fill: 'both' });
       return () => animation.cancel();
     }
     const turn = pending.current;
@@ -122,7 +134,11 @@ export function useBookTurn(frameRef: RefObject<HTMLDivElement | null>, pageKey:
       pending.current = null; busy.current = false; finishRef.current = null;
       if (updateState) setIsTurning(false);
     }
-    function finish() { stop(true); }
+    function finish() {
+      // The flattened face and live page share their layout. Hand over in
+      // this frame, without a second fade or delayed interaction.
+      stop(true);
+    }
     finishRef.current = finish;
     window.addEventListener('resize', finish);
     motion.addEventListener('change', finish);
@@ -182,7 +198,9 @@ export function useBookTurn(frameRef: RefObject<HTMLDivElement | null>, pageKey:
       }
       begin();
     }
-    const fallbackTimer = window.setTimeout(flatFallback, 180);
+    // Keep the old page held in place while textures prepare, but do not leave
+    // navigation feeling unresponsive on slower phones or laptops.
+    const fallbackTimer = window.setTimeout(flatFallback, 120);
 
     async function renderPages() {
       try {
