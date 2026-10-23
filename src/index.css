@@ -750,7 +750,12 @@ button { cursor: pointer; touch-action: manipulation; }
 .session-notice-copy > svg { flex: none; margin-top: .12rem; color: var(--burgundy); }
 .session-notice strong { display: block; color: var(--burgundy); font: var(--font-control); }
 .session-notice p { margin: .35rem 0 0; color: var(--ink-soft); font-size: var(--text-small); line-height: var(--leading-body); }
-.session-notice .quiet-button { margin-top: .85rem; padding: .62rem .85rem; }
+.session-notice-actions { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-top: .85rem; }
+.session-notice-countdown { color: var(--ink-faint); font: var(--font-caption); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.session-notice .quiet-button { padding: .62rem .85rem; }
+.session-notice-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; overflow: hidden; background: rgba(110,48,64,.08); }
+.session-notice-progress span { display: block; width: 100%; height: 100%; background: var(--terra); transform-origin: left center; animation: session-notice-countdown 10s linear forwards; }
+@keyframes session-notice-countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .site-footer {
   width: 100%; padding: 2.2rem clamp(1.25rem, 4vw, 4.25rem) 1.15rem;
   background: var(--burgundy); color: #f0e3d2;
@@ -905,6 +910,8 @@ button { cursor: pointer; touch-action: manipulation; }
   .modal-actions button { width: 100%; justify-content: center; }
   .toast-note { left: .75rem; right: .75rem; bottom: max(.75rem, env(safe-area-inset-bottom)); max-width: none; }
   .session-notice { right: .75rem; bottom: max(.75rem, env(safe-area-inset-bottom)); width: calc(100% - 1.5rem); max-height: calc(100dvh - 6rem); overflow-y: auto; }
+  .session-notice-actions { align-items: stretch; flex-direction: column; gap: .55rem; }
+  .session-notice-countdown { align-self: flex-end; }
   .session-notice .quiet-button { width: 100%; }
   .info-layer { padding: .5rem; }
   .public-info-shell { padding: .5rem; }

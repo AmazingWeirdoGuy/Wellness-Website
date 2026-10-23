@@ -800,6 +800,7 @@ function Journal({ onHome }: { onHome: () => void }) {
   const [infoPage, setInfoPage] = useState<InfoPage | null>(null);
   const [showSupport, setShowSupport] = useState(false);
   const [sessionNoticeOpen, setSessionNoticeOpen] = useState(true);
+  const [sessionNoticeSeconds, setSessionNoticeSeconds] = useState(10);
   const [showBurn, setShowBurn] = useState(false);
   const [burningPage, setBurningPage] = useState<Section | null>(null);
   const burnTimer = useRef<number | null>(null);
@@ -812,6 +813,21 @@ function Journal({ onHome }: { onHome: () => void }) {
 
   const activeLabel = useMemo(() => sections.find((section) => section.id === active)?.label ?? 'Contents', [active]);
   const activeIndex = sections.findIndex((section) => section.id === active);
+
+  useEffect(() => {
+    if (!sessionNoticeOpen) return;
+
+    setSessionNoticeSeconds(10);
+    const countdown = window.setInterval(() => {
+      setSessionNoticeSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    const dismiss = window.setTimeout(() => setSessionNoticeOpen(false), 10000);
+
+    return () => {
+      window.clearInterval(countdown);
+      window.clearTimeout(dismiss);
+    };
+  }, [sessionNoticeOpen]);
   const navigateTo = (section: Section, direction?: PageDirection) => {
     if (busy.current) {
       queuedPage.current = section;
@@ -947,7 +963,11 @@ function Journal({ onHome }: { onHome: () => void }) {
               <p>Nothing here is tracked, saved, or sent. Your entries stay in this session and disappear when you leave.</p>
             </div>
           </div>
-          <button className="quiet-button" onClick={() => setSessionNoticeOpen(false)}>I understand</button>
+          <div className="session-notice-actions">
+            <span className="session-notice-countdown" aria-live="polite">Closing in {sessionNoticeSeconds}s</span>
+            <button className="quiet-button" onClick={() => setSessionNoticeOpen(false)}>I understand</button>
+          </div>
+          <div className="session-notice-progress" aria-hidden="true"><span /></div>
         </aside>
       )}
       {showSupport && <SupportModal onClose={() => setShowSupport(false)} />}
